@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.wind.learningpack'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.wind.learningpack'
+        minSdk 29
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 网页资源原样打包（KaTeX 字体已经是 woff2）
+    androidResources {
+        noCompress 'woff2'
+    }
+}

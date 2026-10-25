@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 绿底圆角，中间一张白色的卡片和一个勾 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#2E7D32" />
+            <corners android:radius="24dp" />
+            <size android:width="108dp" android:height="108dp" />
+        </shape>
+    </item>
+    <item android:left="24dp" android:right="24dp" android:top="28dp" android:bottom="28dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <item android:left="36dp" android:right="36dp" android:top="50dp" android:bottom="50dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#A5D6A7" />
+            <corners android:radius="4dp" />
+        </shape>
+    </item>
+</layer-list>

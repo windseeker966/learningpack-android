@@ -2,16 +2,23 @@ package com.wind.learningpack;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.Insets;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 
 import org.json.JSONObject;
 
@@ -43,7 +50,6 @@ public abstract class WebActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         web = new WebView(this);
-        web.setFitsSystemWindows(true);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -75,8 +81,39 @@ public abstract class WebActivity extends Activity {
             }
         });
         web.addJavascriptInterface(new Bridge(), "Android");
-        setContentView(web);
+        setContentView(insetContainer(web));
         web.loadUrl("https://" + HOST + "/web/" + page());
+    }
+
+    /**
+     * Android 15 起内容默认延伸到状态栏、导航栏下面，WebView 不会自己让开：外面套一层，按系统栏、
+     * 刘海和键盘的大小留出空白（底色同网页的 --bg）
+     */
+    private FrameLayout insetContainer(WebView child) {
+        FrameLayout box = new FrameLayout(this);
+        boolean dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+        box.setBackgroundColor(dark ? Color.rgb(0x11, 0x11, 0x13) : Color.rgb(0xf6, 0xf6, 0xf4));
+        if (!dark && Build.VERSION.SDK_INT >= 30) {
+            // 浅色底上状态栏、导航栏用深色图标
+            int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+            getWindow().getInsetsController().setSystemBarsAppearance(light, light);
+        }
+        box.addView(child, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        box.setOnApplyWindowInsetsListener((v, insets) -> {
+            if (Build.VERSION.SDK_INT >= 30) {
+                Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                Insets ime = insets.getInsets(WindowInsets.Type.ime());
+                v.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime.bottom));
+            } else {
+                v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            }
+            return insets;
+        });
+        return box;
     }
 
     @Override

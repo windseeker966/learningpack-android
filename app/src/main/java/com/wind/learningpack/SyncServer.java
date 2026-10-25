@@ -107,7 +107,8 @@ final class SyncServer {
                     respond(s, 200, new JSONObject().put("v", 1).put("pending", store.pendingCount()).toString());
                     break;
                 case "POST /pull":
-                    respond(s, 200, new JSONObject().put("v", 1).put("results", store.pendingResults()).toString());
+                    respond(s, 200, new JSONObject().put("v", 1).put("results", store.pendingResults())
+                            .put("study", StudyTime.get(context).today()).toString());
                     break;
                 case "POST /push": {
                     List<String> need = store.applyPush(new JSONObject(new String(body, StandardCharsets.UTF_8)));

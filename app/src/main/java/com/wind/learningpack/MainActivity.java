@@ -21,7 +21,7 @@ import org.json.JSONObject;
 import java.util.Date;
 import java.util.List;
 
-/** 首页：今天还有几道复习题、几个词、测过计算测速没有，和 iPad 上次同步的时间；同步服务在这里启动 */
+/** 首页：今天还有几道复习题、几个词、测过计算测速没有，iPad 上次同步的时间和今天在手机上学了多久；同步服务在这里启动 */
 public class MainActivity extends Activity {
     private TextView status, hint;
     private Button review, vocab, passage, fact, guide;
@@ -125,6 +125,8 @@ public class MainActivity extends Activity {
         StringBuilder s = new StringBuilder();
         s.append(last == 0 ? "还没和 iPad 同步过" : "上次和 iPad 同步：" + time(last));
         if (pending > 0) s.append("\n还有 ").append(pending).append(" 条作答等 iPad 取走");
+        long studied = StudyTime.get(this).todaySeconds() / 60;
+        if (studied > 0) s.append("\n今天在手机上学了 ").append(studied).append(" 分钟（同步后算进 iPad 的学习码）");
         status.setText(s);
         hint.setText(store.pushIsToday() ? ""
                 : "今天还没和 iPad 同步：打开 iPad 上的 LearningPack，两台设备连同一个 Wi-Fi，或让 iPad 连这台手机的热点。"

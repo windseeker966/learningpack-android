@@ -31,13 +31,20 @@ import java.util.Locale;
  * 做题、背单词、AI 短文复习的界面都是网页（assets/web/），公式用 KaTeX 显示。
  * 网页从 https://lp.local/web/… 读 assets，从 https://lp.local/img/<sha> 读 iPad 推来的图片（都在这里拦下，不联网）。
  * 网页通过 window.Android.call / callAsync 调这里；子类在 handle 里处理各自的方法。
- * App 退到后台、锁屏时通知网页（lpVisible(false)），用来暂停作答计时
+ * App 退到后台、锁屏时通知网页（lpVisible(false)），用来暂停作答计时；页面在前台的时间记进今天的学习时间（StudyTime）
  */
 public abstract class WebActivity extends Activity {
     private static final String HOST = "lp.local";
     protected WebView web;
     private TextToSpeech tts;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable studyTick = new Runnable() {
+        @Override
+        public void run() {
+            StudyTime.get(WebActivity.this).tick(System.currentTimeMillis());
+            main.postDelayed(this, StudyTime.TICK_MS);
+        }
+    };
 
     /** assets/web/ 下的页面，如 review.html */
     protected abstract String page();
@@ -120,11 +127,15 @@ public abstract class WebActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.evaluateJavascript("window.lpVisible && lpVisible(true)", null);
+        StudyTime.get(this).resume(System.currentTimeMillis());
+        main.postDelayed(studyTick, StudyTime.TICK_MS);
     }
 
     @Override
     protected void onPause() {
         web.evaluateJavascript("window.lpVisible && lpVisible(false)", null);
+        main.removeCallbacks(studyTick);
+        StudyTime.get(this).pause(System.currentTimeMillis());
         super.onPause();
     }
 

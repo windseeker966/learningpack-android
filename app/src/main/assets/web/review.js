@@ -444,8 +444,17 @@ function choiceView(q) {
       return;
     }
 
-    const fb = el('<div class="card"></div>');
     const r = st.result;
+    // 「下一题」紧跟在题目下面，不用翻过解析、错因去找；错因选了「其他原因」要写了原因才能点
+    const canNext = () => !st.causes.has('other') || st.note.trim().length > 0 || (r.correct && st.confidence === 'sure');
+    const row = el('<div class="row"></div>');
+    const nextBtn = el('<button class="btn">下一题</button>');
+    nextBtn.disabled = !canNext();
+    nextBtn.onclick = next;
+    row.appendChild(nextBtn);
+    app.appendChild(row);
+
+    const fb = el('<div class="card"></div>');
     let answerText;
     if (c.type === 'multi_blank') answerText = (c.blanks || []).map((b, i) => CIRCLED[Math.min(i, 9)] + b.answer).join(' ');
     else if (c.type === 'multi') answerText = (c.answer || '').split('').map(k => order.label(k)).sort().join('');
@@ -482,13 +491,6 @@ function choiceView(q) {
       }
       app.appendChild(cause);
     }
-    const canNext = () => !st.causes.has('other') || st.note.trim().length > 0 || (r.correct && st.confidence === 'sure');
-    const row = el('<div class="row"></div>');
-    const nextBtn = el('<button class="btn">下一题</button>');
-    nextBtn.disabled = !canNext();
-    nextBtn.onclick = next;
-    row.appendChild(nextBtn);
-    app.appendChild(row);
   }
 
   render();
@@ -550,11 +552,11 @@ function blankView(q) {
     parts.forEach((p, i) => card.insertAdjacentHTML('beforeend',
       `<div class="muted">${esc(p.label)} 你填：<span style="color:var(--green)">${esc(st.inputs[i])}</span> ✓</div>`));
     app.appendChild(card);
-    app.appendChild(el('<div class="card"><div class="banner right">全部填对了</div></div>'));
-    app.appendChild(answerCard());
     const row = el('<div class="row"><button class="btn">下一题</button></div>');
     row.querySelector('button').onclick = () => advance(right);
     app.appendChild(row);
+    app.appendChild(el('<div class="card"><div class="banner right">全部填对了</div></div>'));
+    app.appendChild(answerCard());
   };
 
   function questionCard() {

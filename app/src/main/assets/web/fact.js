@@ -88,22 +88,58 @@ function summary(results) {
   };
 }
 
+/** 按事实的 key 和题面左边的数还原一道题（接着做没做完的一轮时用） */
+function questionFor(key, left) {
+  const [kind, a, b] = key.split(':');
+  const f = facts(kind).find(x => x.a === Number(a) && x.b === Number(b));
+  if (!f) return null;
+  if (kind !== 'rem') return question(f);
+  const r = left - f.a * f.b;
+  if (r < 1 || r >= f.a) return null;
+  return { fact: f, left, right: f.a, answer: { value: f.b, remainder: r } };
+}
+
 // ---- 一轮 ----
 
 let setup, items = [], index = 0, input = '', phase = 'answering', last = null;
-let results = [], createdAt = 0, saved = false;
+let results = [], createdAt = 0, roundId = null;
+// 接着做时以前已经答过的题数（进度显示算上它们）
+let answeredBefore = 0;
 const clock = new Clock();
 let thinkSeconds = null;
 
+let guideOpen = false;
+
 function load() {
+  // 首页的「背诵表和方法」直接打开背诵表
+  if (call('mode') === 'guide') { renderGuide(app, null); return; }
   setup = call('setup');
-  start();
+  const p = setup.progress;
+  if (p && p.pending && p.pending.length) resume(p); else start();
+}
+
+/** 今天没做完的一轮：接着做剩下的题（同一个 id，交给 iPad 时更新原来那条） */
+function resume(p) {
+  roundId = p.id; createdAt = p.createdAt; results = p.results || [];
+  answeredBefore = results.length;
+  items = p.pending.map(x => ({ q: questionFor(x.key, x.left), retry: !!x.retry })).filter(x => x.q);
+  index = 0; last = null; phase = 'answering';
+  if (!items.length) { phase = 'finished'; save(true); render(); return; }
+  showCurrent();
+}
+
+/** 测速中打开背诵表：这一题的计时停下，回来接着计 */
+function openGuide() {
+  guideOpen = true;
+  clock.stop();
+  renderGuide(app, () => { guideOpen = false; if (phase === 'answering') clock.start(); render(); });
 }
 
 function start() {
   items = dailyTest(setup.perKind || 10, setup.stats || {}).map(q => ({ q, retry: false }));
-  index = 0; results = []; last = null; saved = false; phase = 'answering';
-  createdAt = Date.now();
+  index = 0; results = []; last = null; phase = 'answering'; answeredBefore = 0;
+  createdAt = Date.now(); roundId = uuid();
+  save(false);
   showCurrent();
 }
 
@@ -135,8 +171,9 @@ function submit() {
   clock.stop();
   results.push(r);
   last = r;
+  if (!correct && !retry) items.push({ q, retry: true });
+  save(false, index + 1);
   if (correct) { next(); return; }
-  if (!retry) items.push({ q, retry: true });
   phase = 'wrong';
   render();
 }
@@ -149,21 +186,23 @@ function next() {
   render();
 }
 
-/** 一轮记一条；中途退出时只记已答的，finishedAt 为 null */
-function save(finished) {
-  if (saved || !results.length) return;
-  saved = true;
-  call('save', { id: uuid(), createdAt, finishedAt: finished ? Date.now() : null, results });
+/** 每答一题存一次：已答的题和还没做的题（从 from 起）。一轮一个 id，做完时 pending 为空、finishedAt 有值 */
+function save(finished, from = index) {
+  const pending = finished ? [] : items.slice(from).map(x => ({ key: keyOf(x.q.fact), left: x.q.left, retry: x.retry }));
+  call('save', { id: roundId, createdAt, finishedAt: finished ? Date.now() : null, results, pending });
 }
 
-function close() { save(false); call('close'); }
+function close() { call('close'); }
 
 // ---- 界面 ----
 
 function render() {
   app.innerHTML = '';
   if (phase === 'finished') { renderResults(); return; }
-  const bar = el(`<div class="top"><span class="grow">计算测速 ${Math.min(index + 1, items.length)} / ${items.length}</span></div>`);
+  const bar = el(`<div class="top"><span class="grow">计算测速 ${answeredBefore + Math.min(index + 1, items.length)} / ${answeredBefore + items.length}</span></div>`);
+  const guide = el('<button class="link">背诵表</button>');
+  guide.onclick = openGuide;
+  bar.appendChild(guide);
   const end = el('<button class="link">结束</button>');
   end.onclick = close;
   bar.appendChild(end);
@@ -192,7 +231,7 @@ function render() {
   }
 
   const pad = el('<div class="keypad"></div>');
-  for (const k of ['7', '8', '9', '4', '5', '6', '1', '2', '3', '余', '0', 'del']) {
+  for (const k of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '余', '0', 'del']) {
     const b = el(`<button>${k === 'del' ? '⌫' : k}</button>`);
     // 按下就算（不等抬起），计时更准
     b.addEventListener('pointerdown', e => { e.preventDefault(); press(k); });
@@ -240,5 +279,8 @@ function renderResults() {
 }
 
 // 返回键：先把已答的存下来，再关掉
-window.lpBack = () => { save(phase === 'finished'); return false; };
+window.lpBack = () => {
+  if (guideOpen) { guideOpen = false; if (phase === 'answering') clock.start(); render(); return true; }
+  return false;
+};
 try { load(); } catch (err) { app.innerHTML = '<div class="card">出错了：' + esc(err.message) + '</div>'; }

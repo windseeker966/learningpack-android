@@ -318,8 +318,11 @@ final class Store extends SQLiteOpenHelper {
                 }
             }
         }
-        return new JSONObject().put("perKind", facts.optInt("perKind", 10)).put("stats", stats)
+        JSONObject out = new JSONObject().put("perKind", facts.optInt("perKind", 10)).put("stats", stats)
                 .put("doneToday", factDoneToday());
+        JSONObject progress = new JSONObject(prefs().getString("factProgress", "{}"));
+        if (today().equals(progress.optString("day"))) out.put("progress", progress);
+        return out;
     }
 
     /** 今天测完过一轮：iPad 上测过（今天推来的），或这台手机上测完过 */
@@ -331,11 +334,34 @@ final class Store extends SQLiteOpenHelper {
         return today().equals(prefs().getString("factDoneDay", ""));
     }
 
-    /** 记一轮测速（PROTOCOL.md 的 fact）；中途退出的 finishedAt 为 null */
+    /**
+     * 记一轮测速（PROTOCOL.md 的 fact），每答一题存一次，同一轮用同一个 id 覆盖。
+     * 还没做的题（pending）只存在本机，当天再打开时接着做；做完（finishedAt 有值）清掉
+     */
     void saveFactRound(JSONObject round) throws Exception {
+        JSONArray pending = round.optJSONArray("pending");
+        round.remove("pending");
+        SharedPreferences.Editor e = prefs().edit();
+        if (round.isNull("finishedAt") && pending != null && pending.length() > 0) {
+            e.putString("factProgress", new JSONObject(round.toString()).put("pending", pending).put("day", today()).toString());
+        } else {
+            e.remove("factProgress");
+        }
+        if (!round.isNull("finishedAt")) e.putString("factDoneDay", today());
+        e.apply();
+        if (round.optJSONArray("results") == null || round.getJSONArray("results").length() == 0) return;
         round.put("type", "fact");
-        if (!round.isNull("finishedAt")) prefs().edit().putString("factDoneDay", today()).apply();
         addResult(round, null);
+    }
+
+    /** 今天没做完的一轮还剩几题；没有为 0 */
+    int factRemaining() {
+        try {
+            JSONObject p = new JSONObject(prefs().getString("factProgress", "{}"));
+            return today().equals(p.optString("day")) ? p.getJSONArray("pending").length() : 0;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     // ---- 学习会话（同 iPad：相邻两次作答间隔超过 30 分钟算新的会话）----

@@ -173,8 +173,8 @@ iPad 每次同步依次调用：
               "correct": true, "seconds": 2.4, "thinkSeconds": 1.6, "retry": false, "answeredAt": 1761360002400}]}
 ```
 
-一轮一条。`seconds` 是出题到点「确定」（只算亮屏时间），`thinkSeconds` 是出题到按第一个键；`retry` 为 true 是本轮答错后在最后重出的一次。
-iPad 记一条 `FactDrill`（`phoneID` 是这条的 id），按 key 和题面左边的数还原题目重新判对错，不信任手机的 `correct`、`answer`。
+一轮一条，每答一题就更新（同一个 `id` 覆盖）；中途退出后当天接着做的，仍是同一个 `id`，所以 iPad 可能先取走没做完的，之后再收到答得更多或做完的同一轮。`seconds` 是出题到点「确定」（只算亮屏时间），`thinkSeconds` 是出题到按第一个键；`retry` 为 true 是本轮答错后在最后重出的一次。
+iPad 记一条 `FactDrill`（`phoneID` 是这条的 id；同一个 id 再来时，答的题更多或刚做完就更新那条），按 key 和题面左边的数还原题目重新判对错，不信任手机的 `correct`、`answer`。
 
 ### 跳过 `skip`
 

@@ -25,7 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 这台手机上的数据：iPad 推来的今天的复习题和单词（每次推送整个替换）、还没被 iPad 取走的作答结果、跳过的题、图片。
+ * 这台手机上的数据：iPad 推来的今天的复习题和单词、计算测速的各事实成绩（每次推送整个替换）、还没被 iPad 取走的作答结果、跳过的题、图片。
  * 作答结果被 iPad 确认（ack）后就删掉：iPad 上的 LearningPack 才是权威数据。
  */
 final class Store extends SQLiteOpenHelper {
@@ -140,6 +140,7 @@ final class Store extends SQLiteOpenHelper {
                 .putLong("generatedAt", push.optLong("generatedAt"))
                 .putLong("lastSync", System.currentTimeMillis())
                 .putString("recentPassageKeys", recent == null ? "[]" : recent.toString())
+                .putString("facts", push.optJSONObject("facts") == null ? "{}" : push.getJSONObject("facts").toString())
                 .putFloat("retention", (float) push.optDouble("retention", 0.9))
                 .apply();
         changed();
@@ -294,6 +295,47 @@ final class Store extends SQLiteOpenHelper {
             prefs().edit().putString("localPassages", kept.toString()).apply();
         } catch (Exception ignored) {
         }
+    }
+
+    // ---- 计算测速 ----
+
+    /**
+     * 抽题用的：每类几题、今天测过没有、每个事实最近一次的成绩（iPad 推来的，再用这台手机上还没被取走的轮次覆盖），
+     * 规则同 iPad 的 ArithmeticFacts（手机按同样的规则自己抽题）
+     */
+    synchronized JSONObject factSetup() throws Exception {
+        JSONObject facts = new JSONObject(prefs().getString("facts", "{}"));
+        JSONObject stats = facts.optJSONObject("stats");
+        if (stats == null) stats = new JSONObject();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT json FROM results WHERE type = 'fact' ORDER BY at", null)) {
+            while (c.moveToNext()) {
+                JSONArray rs = new JSONObject(c.getString(0)).optJSONArray("results");
+                for (int i = 0; rs != null && i < rs.length(); i++) {
+                    JSONObject r = rs.getJSONObject(i);
+                    if (r.optBoolean("retry")) continue;
+                    stats.put(r.getString("key"), new JSONObject().put("seconds", r.getDouble("seconds"))
+                            .put("correct", r.getBoolean("correct")));
+                }
+            }
+        }
+        return new JSONObject().put("perKind", facts.optInt("perKind", 10)).put("stats", stats)
+                .put("doneToday", factDoneToday());
+    }
+
+    /** 今天测完过一轮：iPad 上测过（今天推来的），或这台手机上测完过 */
+    boolean factDoneToday() {
+        try {
+            if (pushIsToday() && new JSONObject(prefs().getString("facts", "{}")).optBoolean("doneToday")) return true;
+        } catch (Exception ignored) {
+        }
+        return today().equals(prefs().getString("factDoneDay", ""));
+    }
+
+    /** 记一轮测速（PROTOCOL.md 的 fact）；中途退出的 finishedAt 为 null */
+    void saveFactRound(JSONObject round) throws Exception {
+        round.put("type", "fact");
+        if (!round.isNull("finishedAt")) prefs().edit().putString("factDoneDay", today()).apply();
+        addResult(round, null);
     }
 
     // ---- 学习会话（同 iPad：相邻两次作答间隔超过 30 分钟算新的会话）----

@@ -50,9 +50,19 @@ iPad 每次同步依次调用：
     "due":  [ <词>, … ],          // 今天要背的词（到期的旧词 + 今天还能开始的新词），按 iPad 的顺序
     "pool": [ <词>, … ],          // AI 短文复习可以挑的词：背过的全部词
     "recentPassageKeys": ["<词 key>", …]  // 最近一小时 AI 短文里挑过的词，不再挑
+  },
+  "facts": {                      // 计算测速
+    "doneToday": false,           // 今天在 iPad 上测完过一轮
+    "perKind": 10,                // 每类出几题
+    "stats": {"sub:13:7": {"seconds": 3.1, "correct": false}}   // 每个事实最近一次的成绩（不算本轮重出的）
   }
 }
 ```
+
+计算测速的题由手机自己抽，规则同 iPad 的 `ArithmeticFacts`（`assets/web/fact.js` 照搬）：四类事实 `add`（a+b，a、b 为 2…9、和不小于 11）、
+`sub`（a−b，a 为 11…18，b 和差在 2…9）、`div`（a÷b，b 为 2…9、商 2…9）、`rem`（除数 a 为 2…9、商 b 为 1…9 的倍数区间，
+被除数在 a·b+1…a·b+a−1 随机），事实的 key 是 `<类>:<a>:<b>`。每类各抽 `perKind` 个，权重：没测过 2，上次答错 4，
+答对的 1 + min(max(用时 ÷ 熟练线 − 1, 0), 2)，熟练线 2 秒（带余除法 3 秒）。
 
 题单只含能在手机上做的题：选择题（不含阅读理解题），以及填空题（主观题里 `format: blank` 的）。综合题不发。
 手机上的题单整个替换：iPad 上做掉的题不再出现在题单里，手机上也就不再出。
@@ -154,6 +164,17 @@ iPad 每次同步依次调用：
 ```
 
 只有确认了自评的短文才发；iPad 记一条 `VocabPassageAttempt`，并按 `confirmedAt` 把各词的 `rating` 计入单词复习。
+
+### 计算测速 `fact`
+
+```json
+{"id": "…", "type": "fact", "createdAt": 1761360000000, "finishedAt": 1761360150000,   // 中途退出的 finishedAt 为 null
+ "results": [{"key": "rem:7:7", "kind": "rem", "prompt": "50 ÷ 7", "answer": "7余1", "given": "7余1",
+              "correct": true, "seconds": 2.4, "thinkSeconds": 1.6, "retry": false, "answeredAt": 1761360002400}]}
+```
+
+一轮一条。`seconds` 是出题到点「确定」（只算亮屏时间），`thinkSeconds` 是出题到按第一个键；`retry` 为 true 是本轮答错后在最后重出的一次。
+iPad 记一条 `FactDrill`（`phoneID` 是这条的 id），按 key 和题面左边的数还原题目重新判对错，不信任手机的 `correct`、`answer`。
 
 ### 跳过 `skip`
 

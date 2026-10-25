@@ -9,6 +9,7 @@ iPad 上的 LearningPack（`/Users/wind/vscode/Learning`）的手机端，用来
 - 跳过：需要写字的题点「跳过」：「今天先跳过（留给 iPad 做）」，或「以后都不在手机上出这道题」。
 - 背单词：今天要背的词，流程同 iPad 的生词复习（不认识的词本轮再出现）。
 - AI 短文复习生词：从背过的词里挑几个，请 AI 写一篇短文，写出各词在文中的意思，AI 批改后自评。提示词、短文里生词标记的解析照搬 iPad 的 `VocabPassageAI`、`VocabPassage`。API Key 在「设置」里填（默认 DeepSeek 的 Anthropic 兼容接口）。
+- 计算测速：进位加法、退位减法、表内除法、带余除法各抽 10 题，屏幕键盘作答（带「余」键），自动判对错、计时；上次答错、答得慢的多抽（用 iPad 推来的各事实最近成绩），答错的显示答案、本轮最后再出一次。规则照搬 iPad 的 `ArithmeticFacts`（`assets/web/fact.js`），每轮结果交给 iPad 记成 `FactDrill`。iPad 或手机上今天测完过一轮，首页显示「今天测过了 · 再测一轮」。
 - 作答计时只算 App 在前台、题目在屏幕上的时间。
 
 ## 同步

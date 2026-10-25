@@ -21,10 +21,10 @@ import org.json.JSONObject;
 import java.util.Date;
 import java.util.List;
 
-/** 首页：今天还有几道复习题、几个词，和 iPad 上次同步的时间；同步服务在这里启动 */
+/** 首页：今天还有几道复习题、几个词、测过计算测速没有，和 iPad 上次同步的时间；同步服务在这里启动 */
 public class MainActivity extends Activity {
     private TextView status, hint;
-    private Button review, vocab, passage;
+    private Button review, vocab, passage, fact;
     private final Runnable refresh = this::refresh;
 
     @Override
@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
         vocab = bigButton(box, v -> startActivity(new Intent(this, VocabActivity.class)));
         passage = bigButton(box, v -> startActivity(new Intent(this, PassageActivity.class)));
         passage.setText("AI 短文复习生词");
+        fact = bigButton(box, v -> startActivity(new Intent(this, FactActivity.class)));
 
         hint = new TextView(this);
         hint.setPadding(0, dp(16), 0, 0);
@@ -108,6 +109,12 @@ public class MainActivity extends Activity {
         review.setEnabled(questions > 0);
         vocab.setText(words > 0 ? "背单词  " + words + " 个" : "今天的单词背完了");
         vocab.setEnabled(words > 0);
+        int perKind = 10;
+        try {
+            perKind = store.factSetup().optInt("perKind", 10);
+        } catch (Exception ignored) {
+        }
+        fact.setText(store.factDoneToday() ? "计算测速  今天测过了 · 再测一轮" : "计算测速  " + perKind * 4 + " 题");
 
         long last = store.prefs().getLong("lastSync", 0);
         int pending = store.pendingCount();

@@ -57,6 +57,12 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".FactActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoTitle" />
+
+        <activity
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="设置"

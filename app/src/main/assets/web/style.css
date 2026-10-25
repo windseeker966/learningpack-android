@@ -106,3 +106,7 @@ sup.num { font-size: 11px; color: var(--muted); margin-left: 1px; }
 .menu .sheet .row button { display: block; text-align: center; padding: 8px 14px; border-bottom: 0; }
 .menu .sheet .row .btn { color: #fff; background: var(--accent); }
 .menu .sheet .row .btn.plain { color: var(--accent); background: transparent; border: 1px solid var(--line); }
+.menu .sheet .row .btn.red { background: var(--red); }
+.menu .sheet .chip { display: inline-block; width: auto; padding: 5px 12px; border: 1px solid var(--line); font-size: 15px; background: var(--card); }
+.menu .sheet .chip.on { border-color: var(--red); background: rgba(198, 40, 40, 0.10); color: var(--red); font-weight: 600; }
+.menu .sheet textarea { margin: 4px 0; }

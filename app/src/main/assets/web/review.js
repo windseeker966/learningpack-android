@@ -223,10 +223,66 @@ function topBar(q, onSkip) {
     ]);
     bar.appendChild(skip);
   }
+  const fault = el(`<button class="link">${faulted.has(q.key) ? '已标有错' : '有错'}</button>`);
+  if (faulted.has(q.key)) fault.style.color = 'var(--red)';
+  fault.onclick = () => faultSheet(q, () => {
+    // 还没作答：这道不做了，同跳过；作答过的留在这里，作答照样交给 iPad
+    if (onSkip) { blockSkipped++; pos++; show(); } else bar.replaceWith(topBar(q, onSkip));
+  });
+  bar.appendChild(fault);
   const end = el('<button class="link">结束</button>');
   end.onclick = closePage;
   bar.appendChild(end);
   return bar;
+}
+
+// ---- 标记题目有错（同 iPad 的 QuestionFaultButton；FaultReason 里原题能选的几项）----
+
+const FAULT_REASONS = [['wrong_answer', '答案或解析错误'], ['multiple_answers', '答案不唯一'], ['unclear', '题意不清']];
+const faulted = new Map();   // 这次标了有错的题：key → {reasons, note}
+
+function faultSheet(q, after) {
+  const was = faulted.get(q.key);
+  const reasons = new Set(was ? was.reasons : []);
+  const m = el('<div class="menu"><div class="sheet"></div></div>');
+  const sheet = m.querySelector('.sheet');
+  sheet.insertAdjacentHTML('beforeend', `<div class="big" style="font-size:20px">${was ? '已标记这道题有错' : '标记这道题有错'}</div>
+    <p class="muted">题干、选项、答案或解析有误时标记。和 iPad 同步后，复习、错题本和统计都不再使用这道题；可以在 iPad 上取消。</p>`);
+  const reasonChips = () => chips(FAULT_REASONS, reasons, v => {
+    if (reasons.has(v)) reasons.delete(v); else reasons.add(v);
+    box.replaceWith(box = reasonChips());
+  });
+  let box = reasonChips();
+  sheet.appendChild(box);
+  const note = el('<textarea placeholder="哪里有错（选填），如：答案应为 C"></textarea>');
+  note.value = was ? was.note : '';
+  sheet.appendChild(note);
+  const row = el('<div class="row"></div>');
+  const close = () => m.remove();
+  if (was) {
+    const undo = el('<button class="btn plain">取消标记</button>');
+    undo.onclick = () => {
+      call('fault', { key: q.key, pack: q.pack, question: q.id, faulty: false });
+      faulted.delete(q.key);
+      close();
+      after();
+    };
+    row.appendChild(undo);
+  }
+  const ok = el(`<button class="btn red">${was ? '保存' : '标记有错'}</button>`);
+  ok.onclick = () => {
+    const picked = FAULT_REASONS.map(r => r[0]).filter(r => reasons.has(r));
+    call('fault', { key: q.key, pack: q.pack, question: q.id, faulty: true, reasons: picked, note: note.value.trim() || null });
+    faulted.set(q.key, { reasons: picked, note: note.value.trim() });
+    close();
+    if (!was) after();
+  };
+  const cancel = el('<button class="btn plain">取消</button>');
+  cancel.onclick = close;
+  row.append(cancel, ok);
+  sheet.appendChild(row);
+  m.onclick = e => { if (e.target === m) close(); };
+  document.body.appendChild(m);
 }
 
 function skipQuestion(q, forever) {

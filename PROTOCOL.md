@@ -204,6 +204,19 @@ AI 短文复习批改后，在短文里选词加入生词本（同 iPad 在 AI �
 一轮一条，每答一题就更新（同一个 `id` 覆盖）；中途退出后当天接着做的，仍是同一个 `id`，所以 iPad 可能先取走没做完的，之后再收到答得更多或做完的同一轮。`seconds` 是出题到点「确定」（只算亮屏时间），`thinkSeconds` 是出题到按第一个键；`retry` 为 true 是本轮答错后在最后重出的一次。
 iPad 记一条 `FactDrill`（`phoneID` 是这条的 id；同一个 id 再来时，答的题更多或刚做完就更新那条），按 key 和题面左边的数还原题目重新判对错，不信任手机的 `correct`、`answer`。
 
+### 题目有错 `fault`
+
+```json
+{"id": "…", "type": "fault", "pack": "…", "question": "…", "at": 1761360000000,
+ "faulty": true,                  // false 是取消标记
+ "reasons": ["wrong_answer"],     // FaultReason 原始值，原题能选的：wrong_answer | multiple_answers | unclear
+ "note": "答案应为 C"}             // 没写为 null
+```
+
+做题时点「有错」标记题干、选项、答案或解析有误（同 iPad 的「标记题目有错…」）。iPad 写进 `QuestionMark`（`faultyAt` 已有的保留原来的时间），
+重算复习安排：标了有错的题不再复习，之后也不再推给手机。同一道题手机上只留最后一条；还没被取走就取消的，手机直接删掉这条，不发 `faulty: false`。
+还没作答就标的，这道题本次不做（同跳过）；作答过再标的，作答照样发。
+
 ### 跳过 `skip`
 
 ```json

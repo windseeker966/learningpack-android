@@ -33,6 +33,14 @@ public class ReviewActivity extends WebActivity {
                         .put("forever", forever), args.getString("key"));
                 return true;
             }
+            case "fault":
+                store.markFault(args.getString("key"), new JSONObject().put("type", "fault")
+                        .put("pack", args.optString("pack")).put("question", args.optString("question"))
+                        .put("faulty", args.optBoolean("faulty")).put("reasons", args.optJSONArray("reasons") == null
+                                ? new JSONArray() : args.getJSONArray("reasons"))
+                        .put("note", args.isNull("note") ? JSONObject.NULL : args.optString("note"))
+                        .put("at", System.currentTimeMillis()));
+                return true;
             default:
                 throw new IllegalArgumentException("未知的方法：" + method);
         }

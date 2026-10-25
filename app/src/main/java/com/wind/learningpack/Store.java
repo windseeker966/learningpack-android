@@ -218,7 +218,7 @@ final class Store extends SQLiteOpenHelper {
     synchronized List<JSONObject> reviewQueue() throws Exception {
         List<JSONObject> out = new ArrayList<>();
         if (!pushIsToday()) return out;
-        Set<String> done = pendingKeys("choice", "blank", "skip");
+        Set<String> done = pendingKeys("choice", "blank", "skip", "fault");
         Set<String> skipped = new HashSet<>();
         try (Cursor c = getReadableDatabase().rawQuery("SELECT key FROM skips WHERE forever = 1 OR day = ?",
                 new String[]{today()})) {
@@ -232,6 +232,19 @@ final class Store extends SQLiteOpenHelper {
             }
         }
         return out;
+    }
+
+    /**
+     * 标记题目有错（PROTOCOL.md 的 fault）：同一道题只留最后一次。取消标记时，还没被取走的标记直接撤掉；
+     * 已经交给 iPad 的才发一条 faulty 为 false 的。标了的题在被取走前不再出（之后 iPad 也不再推）
+     */
+    synchronized void markFault(String key, JSONObject r) throws Exception {
+        int n = getWritableDatabase().delete("results", "type = 'fault' AND item_key = ?", new String[]{key});
+        if (!r.optBoolean("faulty") && n > 0) {
+            changed();
+            return;
+        }
+        addResult(r, key);
     }
 
     synchronized void skip(String key, boolean forever) {

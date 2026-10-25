@@ -3,8 +3,10 @@ package com.wind.learningpack;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** 做今天的复习题（选择题、填空题），界面在 assets/web/review.html */
+/** 做今天的复习题（选择题、填空题），界面在 assets/web/review.html；首页「做一大组」进来时第一组 10 道 */
 public class ReviewActivity extends WebActivity {
+    static final String EXTRA_BLOCK = "block";
+
     @Override
     protected String page() {
         return "review.html";
@@ -14,6 +16,8 @@ public class ReviewActivity extends WebActivity {
     protected Object handle(String method, JSONObject args) throws Exception {
         Store store = Store.get(this);
         switch (method) {
+            case "options":
+                return new JSONObject().put("block", getIntent().getIntExtra(EXTRA_BLOCK, 0));
             case "queue":
                 return new JSONArray(store.reviewQueue());
             case "session":

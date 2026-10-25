@@ -253,6 +253,7 @@ final class Store extends SQLiteOpenHelper {
         List<JSONObject> out = new ArrayList<>();
         if (!pushIsToday()) return out;
         Set<String> done = pendingKeys("vocab");
+        Set<String> removed = pendingKeys("vocab_remove");
         java.util.LinkedHashMap<String, Integer> last = new java.util.LinkedHashMap<>();
         try (Cursor c = getReadableDatabase().rawQuery(
                 "SELECT item_key, json FROM results WHERE type = 'vocab' AND at >= ? ORDER BY at",
@@ -268,11 +269,11 @@ final class Store extends SQLiteOpenHelper {
             while (c.moveToNext()) {
                 JSONObject e = new JSONObject(c.getString(1));
                 entries.put(c.getString(0), e);
-                if (!done.contains(c.getString(0))) out.add(e);
+                if (!done.contains(c.getString(0)) && !removed.contains(c.getString(0))) out.add(e);
             }
         }
         for (java.util.Map.Entry<String, Integer> r : last.entrySet()) {
-            if (r.getValue() != 1) continue;
+            if (r.getValue() != 1 || removed.contains(r.getKey())) continue;
             JSONObject e = entries.containsKey(r.getKey()) ? entries.get(r.getKey()) : poolEntry(r.getKey());
             if (e != null) out.add(new JSONObject(e.toString()).put("isNew", false));
         }
@@ -294,12 +295,46 @@ final class Store extends SQLiteOpenHelper {
         return c.getTimeInMillis();
     }
 
+    /** AI 短文复习能挑的词：移出生词本的不算 */
     synchronized List<JSONObject> vocabPool() throws Exception {
         List<JSONObject> out = new ArrayList<>();
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT json FROM vocab_pool", null)) {
-            while (c.moveToNext()) out.add(new JSONObject(c.getString(0)));
+        Set<String> removed = pendingKeys("vocab_remove");
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT key, json FROM vocab_pool", null)) {
+            while (c.moveToNext()) if (!removed.contains(c.getString(0))) out.add(new JSONObject(c.getString(1)));
         }
         return out;
+    }
+
+    /**
+     * 加入生词本（PROTOCOL.md 的 vocab_add）：同一个 key 已经加过的覆盖（查到释义后再存一次）。
+     * replaceOnly 为真时只覆盖已有的：查完释义时这个词可能已经移出了，不再加回去
+     */
+    synchronized boolean addVocab(JSONObject r, boolean replaceOnly) throws Exception {
+        String key = r.getString("key");
+        String existing = null;
+        try (Cursor c = getReadableDatabase().rawQuery(
+                "SELECT id FROM results WHERE type = 'vocab_add' AND item_key = ?", new String[]{key})) {
+            if (c.moveToFirst()) existing = c.getString(0);
+        }
+        if (existing == null && replaceOnly) return false;
+        if (existing != null) r.put("id", existing);
+        r.put("type", "vocab_add");
+        addResult(r, key);
+        return true;
+    }
+
+    /**
+     * 移出生词本：这台手机上刚加的（还没交给 iPad）直接撤掉；其余记一条 vocab_remove 等 iPad 删，
+     * 在那之前背单词、短文复习都不再出这个词
+     */
+    synchronized void removeVocab(String key, String word) throws Exception {
+        int n = getWritableDatabase().delete("results", "type = 'vocab_add' AND item_key = ?", new String[]{key});
+        if (n > 0) {
+            changed();
+            return;
+        }
+        addResult(new JSONObject().put("type", "vocab_remove").put("key", key).put("word", word)
+                .put("at", System.currentTimeMillis()), key);
     }
 
     /** 最近一小时 AI 短文里挑过的词：iPad 推来的，加上这台手机上写过的 */

@@ -1,5 +1,6 @@
 // 生词的 AI 短文复习（同 iPad 的 VocabPassageSession、VocabPassageAI、VocabPassage）：
-// 从背过的词里挑 12 个，请 AI 写一篇短文；写出标出的词在文中的意思，AI 逐词批改，按结论建议自评，确认后记一条结果等 iPad 来取
+// 从背过的词里挑 12 个，请 AI 写一篇短文；写出标出的词在文中的意思，AI 逐词批改，按结论建议自评，确认后记一条结果等 iPad 来取。
+// 批改后可以在短文里选词加入生词本（同 iPad 在 AI 短文里划词）：手机请 AI 查释义，记一条 vocab_add 等 iPad 来取
 'use strict';
 
 const app = document.getElementById('app');
@@ -35,6 +36,27 @@ function parsePassage(title, text, validIDs) {
   if (last < text.length) segments.push({ text: text.slice(last) });
   return {
     title, text, segments, used,
+    /** 按空行分段，去掉段首段尾的空白、空段不要；words 是生词在段里的位置（UTF-16），同 VocabPassage.paragraphs */
+    paragraphs() {
+      const out = [{ text: '', words: [] }];
+      for (const x of segments) {
+        if (x.id) {
+          const cur = out[out.length - 1];
+          cur.words.push({ id: x.id, location: cur.text.length, length: x.surface.length });
+          cur.text += x.surface;
+        } else {
+          x.text.split('\n\n').forEach((part, i) => {
+            if (i > 0) out.push({ text: '', words: [] });
+            out[out.length - 1].text += part;
+          });
+        }
+      }
+      return out.map(par => {
+        const shift = par.text.length - par.text.replace(/^\s+/, '').length;
+        const text = par.text.trim();
+        return { text, words: par.words.map(w => ({ id: w.id, location: w.location - shift, length: w.length })) };
+      }).filter(par => par.text);
+    },
     plain() { return segments.map(x => x.id ? x.surface : x.text).join(''); },
     surface(id) { const x = segments.find(y => y.id === id); return x ? x.surface : null; },
     number(id) { return used.indexOf(id) + 1; },
@@ -89,8 +111,10 @@ async function start() {
   if (!call('configured')) return message('还没有设置 AI：在首页右上角「设置 › AI 短文复习」里填写 API Key。');
   const picked = call('pick');
   if (!picked.length) return message('背过的词不够 3 个，或者最近一小时的 AI 短文已经用过了。先去背单词吧。');
-  s = { words: picked.map((entry, i) => ({ id: i + 1, entry })), usage: [], answers: {}, grades: null, ratings: {},
-        createdAt: 0, passage: null, phase: 'generating' };
+  closeWordSheet();
+  // id 也是这篇短文里加入的生词的 passageID（iPad 上 VocabEntry 的 key 用它）
+  s = { id: uuid(), words: picked.map((entry, i) => ({ id: i + 1, entry })), usage: [], answers: {}, grades: null, ratings: {},
+        createdAt: 0, passage: null, phase: 'generating', added: {} };
   generate();
 }
 
@@ -114,16 +138,42 @@ async function generate() {
 
 function entry(id) { return s.words.find(w => w.id === id).entry; }
 
+/** 选词只在批改之后（同 iPad：作答时不能查） */
+const canSelect = () => s && (s.phase === 'rating' || s.phase === 'confirmed');
+
+/** 一段：考的词按批改结论标色、带序号；在这篇短文里加入生词本的词标黄、点了看释义 */
+function paragraphHTML(par, index) {
+  const p = s.passage;
+  const n = par.text.length;
+  const mark = new Array(n).fill(0), added = new Array(n).fill(null);
+  for (const w of par.words) for (let i = w.location; i < w.location + w.length && i < n; i++) mark[i] = w.id;
+  for (const a of Object.values(s.added)) {
+    if (a.paragraph !== par.text) continue;
+    for (let i = a.location; i < a.location + a.length && i < n; i++) added[i] = a.key;
+  }
+  let html = '';
+  for (let i = 0; i < n;) {
+    let j = i;
+    while (j < n && mark[j] === mark[i] && added[j] === added[i]) j++;
+    let piece = esc(par.text.slice(i, j));
+    if (added[i]) piece = `<span class="added" data-key="${esc(added[i])}">${piece}</span>`;
+    if (mark[i]) {
+      let cls = 'word';
+      const g = s.grades && s.grades[mark[i]];
+      if (g) cls += ' ' + ({ correct: 'right', partial: 'partial', wrong: 'wrong' }[g.result]);
+      piece = `<span class="${cls}">${piece}</span>`;
+      if (j >= n || mark[j] !== mark[i]) piece += `<sup class="num">${p.number(mark[i])}</sup>`;
+    }
+    html += piece;
+    i = j;
+  }
+  return `<p class="para" data-par="${index}">${html}</p>`;
+}
+
 function passageHTML() {
   const p = s.passage;
-  let html = p.segments.map(x => {
-    if (!x.id) return esc(x.text);
-    let cls = 'word';
-    if (s.grades && s.grades[x.id]) cls += ' ' + ({ correct: 'right', partial: 'partial', wrong: 'wrong' }[s.grades[x.id].result]);
-    return `<span class="${cls}">${esc(x.surface)}</span><sup class="num">${p.number(x.id)}</sup>`;
-  }).join('');
-  html = html.split(/\n\s*\n/).map(par => '<p>' + par.replace(/\n/g, '<br>') + '</p>').join('');
-  return `<div class="card"><b>${esc(p.title)}</b>${html}</div>`;
+  const tip = canSelect() ? '<p class="muted">长按选词可以加入生词本</p>' : '';
+  return `<div class="card passage"><b>${esc(p.title)}</b>${p.paragraphs().map(paragraphHTML).join('')}${tip}</div>`;
 }
 
 function render() {
@@ -133,7 +183,13 @@ function render() {
   end.onclick = () => call('close');
   bar.appendChild(end);
   app.appendChild(bar);
-  app.appendChild(el(passageHTML()));
+  const passage = el(passageHTML());
+  passage.onclick = e => {
+    const a = e.target.closest('.added');
+    if (a && s.added[a.dataset.key]) showWordSheet(a.dataset.key);
+  };
+  app.appendChild(passage);
+  hideSelectBar();
   const p = s.passage;
 
   if (s.phase === 'answering' || s.phase === 'grading') {
@@ -223,7 +279,7 @@ async function grade() {
 function save() {
   const p = s.passage;
   const result = {
-    id: uuid(), type: 'passage', title: p.title, passage: p.text, createdAt: s.createdAt, confirmedAt: Date.now(),
+    id: s.id, type: 'passage', title: p.title, passage: p.text, createdAt: s.createdAt, confirmedAt: Date.now(),
     items: p.used.map(id => {
       const g = s.grades && s.grades[id];
       return { id, entryKey: entry(id).key, word: entry(id).word, answer: (s.answers[id] || '').trim(),
@@ -236,5 +292,176 @@ function save() {
   render();
 }
 
-window.lpBack = () => false;
+// ---- 选词加入生词本（同 iPad 的 WordLookupSession，只查词，不翻译长句）----
+
+/** 同 VocabSelection.stableHash：UTF-8 字节的 FNV-1a（32 位） */
+function stableHash(str) {
+  let h = 2166136261;
+  for (const b of new TextEncoder().encode(str)) h = Math.imul(h ^ b, 16777619) >>> 0;
+  return h;
+}
+
+/** 选中位置所在的句子（iPad 用 NLTokenizer 重新取；这里只给 AI 查意思用） */
+function sentenceAround(text, location) {
+  if (window.Intl && Intl.Segmenter) {
+    for (const seg of new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text)) {
+      if (location < seg.index + seg.segment.length) return seg.segment.trim();
+    }
+  }
+  const start = Math.max(text.lastIndexOf('. ', location), text.lastIndexOf('? ', location), text.lastIndexOf('! ', location));
+  const ends = ['. ', '? ', '! '].map(t => text.indexOf(t, location)).filter(i => i >= 0);
+  const end = ends.length ? Math.min(...ends) + 1 : text.length;
+  return text.slice(start < 0 ? 0 : start + 2, end).trim();
+}
+
+/** 解析「音标 / 意思 / 原形 / 其他」几行，同 VocabAI.Meaning */
+function parseMeaning(text) {
+  const m = { meaning: null, form: null, note: null, phonetic: null };
+  const fields = { '音标：': 'phonetic', '意思：': 'meaning', '原形：': 'form', '其他：': 'note', '补充：': 'note' };
+  for (const raw of String(text).split('\n')) {
+    const line = raw.trim();
+    const prefix = Object.keys(fields).find(f => line.startsWith(f));
+    if (prefix) {
+      const v = line.slice(prefix.length).trim();
+      m[fields[prefix]] = v && v !== '无' ? v : null;
+    } else if (m.meaning === null && line) {
+      m.meaning = line;
+    }
+  }
+  return m;
+}
+
+/** 选区一端在段落文字里的位置：数前面的文字，序号（sup）不算 */
+function offsetIn(par, node, offset) {
+  const r = document.createRange();
+  r.setStart(par, 0);
+  r.setEnd(node, offset);
+  const before = r.cloneContents();
+  before.querySelectorAll('sup').forEach(x => x.remove());
+  return before.textContent.length;
+}
+
+/** 当前选区：在同一段里、不太长才算；去掉两头的空白和标点 */
+function currentSelection() {
+  if (!canSelect()) return null;
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  const parOf = n => (n.nodeType === Node.TEXT_NODE ? n.parentElement : n).closest('p.para');
+  const par = parOf(range.startContainer);
+  if (!par || par !== parOf(range.endContainer)) return null;
+  const info = s.passage.paragraphs()[+par.dataset.par];
+  let a = offsetIn(par, range.startContainer, range.startOffset), b = offsetIn(par, range.endContainer, range.endOffset);
+  if (!info) return null;
+  const strip = /[\s.,;:!?"'“”‘’()\[\]—–-]/;
+  while (a < b && strip.test(info.text[a])) a++;
+  while (b > a && strip.test(info.text[b - 1])) b--;
+  const word = info.text.slice(a, b);
+  if (!word || word.length > 60 || word.split(/\s+/).length > 6) return null;
+  return { paragraph: info.text, location: a, length: b - a, word };
+}
+
+let selectBar = null, selectTimer = null;
+
+function hideSelectBar() {
+  if (selectBar) { selectBar.remove(); selectBar = null; }
+}
+
+document.addEventListener('selectionchange', () => {
+  clearTimeout(selectTimer);
+  selectTimer = setTimeout(() => {
+    const sel = currentSelection();
+    hideSelectBar();
+    if (!sel) return;
+    const key = ['aipassage', s.id, stableHash(sel.paragraph), sel.location].join('|');
+    selectBar = el('<div class="selbar"><button class="btn"></button></div>');
+    const b = selectBar.querySelector('button');
+    b.textContent = s.added[key] ? '「' + sel.word + '」已在生词本' : '加入生词本：' + sel.word;
+    b.onclick = () => {
+      window.getSelection().removeAllRanges();
+      hideSelectBar();
+      if (!s.added[key]) addWord(key, sel);
+      showWordSheet(key);
+    };
+    document.body.appendChild(selectBar);
+  }, 250);
+});
+
+function addWord(key, sel) {
+  const entry = {
+    key, passageID: s.id, title: s.passage.title, paragraph: sel.paragraph, location: sel.location, length: sel.length,
+    word: sel.word, sentence: sentenceAround(sel.paragraph, sel.location), at: Date.now(),
+  };
+  call('addWord', { entry });
+  s.added[key] = Object.assign({}, entry, { looking: true });
+  render();
+  callAsync('lookup', { word: entry.word, sentence: entry.sentence }).then(text => {
+    const m = parseMeaning(text);
+    const a = s.added[key];
+    if (!a) return;
+    Object.assign(a, m, { looking: false });
+    const { looking, error, ...saved } = a;
+    call('addWord', { entry: saved, replaceOnly: true });
+    refreshWordSheet(key);
+  }).catch(err => {
+    const a = s.added[key];
+    if (!a) return;
+    a.looking = false;
+    a.error = err.message;
+    refreshWordSheet(key);
+  });
+}
+
+function removeWord(key) {
+  const a = s.added[key];
+  if (!a) return;
+  call('removeWord', { key, word: a.word });
+  delete s.added[key];
+  closeWordSheet();
+  render();
+}
+
+let wordSheet = null;
+
+function closeWordSheet() {
+  if (wordSheet) { wordSheet.el.remove(); wordSheet = null; }
+}
+
+function refreshWordSheet(key) {
+  if (wordSheet && wordSheet.key === key) showWordSheet(key);
+}
+
+/** 生词的释义：AI 查完前显示「正在查」；可以移出生词本 */
+function showWordSheet(key) {
+  closeWordSheet();
+  const a = s.added[key];
+  if (!a) return;
+  const m = el('<div class="menu"><div class="sheet"></div></div>');
+  const sheet = m.querySelector('.sheet');
+  sheet.insertAdjacentHTML('beforeend', `<div><span class="big">${esc(a.word)}</span> <span class="muted">${esc(a.phonetic || '')}</span></div>
+    <p class="muted">已加入生词本，下次和 iPad 同步时交给 iPad</p>`);
+  if (a.looking) sheet.insertAdjacentHTML('beforeend', '<p class="muted">AI 正在查意思…</p>');
+  else if (a.error) sheet.insertAdjacentHTML('beforeend', `<p style="color:var(--orange)">没查到意思：${esc(a.error)}。可以在 iPad 的生词本里重新生成释义。</p>`);
+  if (a.meaning) sheet.insertAdjacentHTML('beforeend', `<p>${esc(a.meaning)}</p>`);
+  if (a.form) sheet.insertAdjacentHTML('beforeend', `<p style="color:var(--orange)">原形：${esc(a.form)}</p>`);
+  if (a.note) sheet.insertAdjacentHTML('beforeend', `<p class="muted">其他意思：${esc(a.note)}</p>`);
+  sheet.insertAdjacentHTML('beforeend', `<p class="muted">${esc(a.sentence)}</p>`);
+  const row = el('<div class="row"></div>');
+  const speak = el('<button class="btn plain">朗读</button>');
+  speak.onclick = () => call('speak', { text: a.word });
+  const remove = el('<button class="btn plain">移出生词本</button>');
+  remove.onclick = () => removeWord(key);
+  const ok = el('<button class="btn">好</button>');
+  ok.onclick = closeWordSheet;
+  row.append(speak, remove, ok);
+  sheet.appendChild(row);
+  m.onclick = e => { if (e.target === m) closeWordSheet(); };
+  document.body.appendChild(m);
+  wordSheet = { key, el: m };
+}
+
+window.lpBack = () => {
+  if (wordSheet) { closeWordSheet(); return true; }
+  return false;
+};
 start();

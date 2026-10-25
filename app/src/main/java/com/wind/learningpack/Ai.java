@@ -58,6 +58,15 @@ final class Ai {
             + "只输出一个 JSON 对象，不要其他文字：{\"results\": [{\"id\": 编号, \"result\": \"correct | partial | wrong\", \"note\": \"不是 correct 时，一句话给出这个词在文中的准确意思；correct 时省略\"}]}\n"
             + "逐项列出【学生作答】里的每个编号。";
 
+    /** 划词查意思、加入生词本（同 LearningPack 的 VocabAI.meaningSystem） */
+    static final String MEANING_SYSTEM =
+            "你是考研英语老师。学生在阅读英文文章（考研真题或网页）时划选了一个单词或短语，请给出它在这句话里的意思，不要翻译整句。\n"
+            + "只输出下面几行，不要其他文字：\n"
+            + "音标：划选内容（按原文中的形式）的 DJ 音标（英式，Daniel Jones 体系），用两条斜线包住，如「/ˈmuːlə/」；短语写整个短语，如「/kɪk ˈbæk/」\n"
+            + "意思：词性和在这句里的中文意思，如「n. 钱（俚语）」「phr. 放松，休息」；是熟词僻义时在末尾加「（熟词僻义）」\n"
+            + "原形：划选的不是原形时写原形、原形的 DJ 音标和形态，如「draw /drɔː/（draws 为第三人称单数）」「child /tʃaɪld/（children 为复数）」；短语写短语原形，如「draw out /drɔː ˈaʊt/（draws out 为第三人称单数）」。划选的就是原形时省略这一行\n"
+            + "其他：最常见的其他一两个意思，没有值得写的就省略这一行";
+
     // ---- 请求 ----
 
     /** 一次回答：全文和用的模型（usage 同 iPad 的 LLMUsage） */

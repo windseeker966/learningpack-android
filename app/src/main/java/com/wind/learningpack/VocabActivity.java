@@ -20,6 +20,9 @@ public class VocabActivity extends WebActivity {
                 store.addResult(new JSONObject().put("type", "vocab").put("key", args.getString("key"))
                         .put("rating", args.getInt("rating")).put("at", System.currentTimeMillis()), args.getString("key"));
                 return true;
+            case "remove":
+                store.removeVocab(args.getString("key"), args.optString("word"));
+                return true;
             default:
                 throw new IllegalArgumentException("未知的方法：" + method);
         }

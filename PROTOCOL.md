@@ -165,6 +165,33 @@ iPad 每次同步依次调用：
 ```
 
 只有确认了自评的短文才发；iPad 记一条 `VocabPassageAttempt`，并按 `confirmedAt` 把各词的 `rating` 计入单词复习。
+`id` 也是这篇短文的编号：短文里选词加入生词本的 `vocab_add` 用它作 `passageID`。
+
+### 加入生词本 `vocab_add`
+
+```json
+{"id": "…", "type": "vocab_add", "key": "aipassage|<passageID>|<段落哈希>|<location>",
+ "passageID": "<短文的 id>", "title": "短文标题",
+ "paragraph": "所在的一段（去掉标记的正文，按空行分段、去掉两头空白，同 VocabPassage.paragraphs）",
+ "location": 12, "length": 7,     // 选中的词在这一段里的位置（UTF-16）
+ "word": "…", "sentence": "…",    // sentence 是手机取的所在句子，只给 AI 查意思用
+ "meaning": "…", "form": "…", "note": "…", "phonetic": "…",   // 手机请 AI 查的（同 VocabAI.Meaning），没查到为 null
+ "at": 1761360000000}
+```
+
+AI 短文复习批改后，在短文里选词加入生词本（同 iPad 在 AI 短文里划词）。`key` 同 `VocabSelection(aiPassageID:…)`：
+段落哈希是段落文字 UTF-8 字节的 FNV-1a（32 位，同 `VocabSelection.stableHash`）。iPad 用 `passageID`、`paragraph`、
+`location`、`length` 重新算 key、取原句（`Vocab.sentence`），同一个 key 已经有了就不再加；释义照手机给的存，
+没有的在 iPad 生词本里「重新生成释义」。查到释义后手机会用同一个 `id` 再存一次（还没被取走时覆盖）；
+加入后又移出、还没被取走的，手机直接删掉这条，不发 `vocab_remove`。
+
+### 移出生词本 `vocab_remove`
+
+```json
+{"id": "…", "type": "vocab_remove", "key": "<VocabEntry.key>", "word": "…", "at": 1761360000000}
+```
+
+背单词时把词移出生词本。iPad 删掉这个 `VocabEntry`（已经没有了就不管）。被取走之前，手机上背单词、短文复习都不再出这个词。
 
 ### 计算测速 `fact`
 

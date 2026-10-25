@@ -1,5 +1,6 @@
 // 背单词（同 iPad 的 VocabReviewSession）：看原句里标黄的词想意思，显示释义后自评。
-// 「不认识」的词放到最后，这次结束前再出现一次；每次自评都记一条结果，等 iPad 来取（PROTOCOL.md 的 vocab）
+// 「不认识」的词放到最后，这次结束前再出现一次；每次自评都记一条结果，等 iPad 来取（PROTOCOL.md 的 vocab）。
+// 「移出生词本」记一条 vocab_remove，iPad 同步时删掉这个词
 'use strict';
 
 const app = document.getElementById('app');
@@ -31,6 +32,9 @@ function show() {
     return;
   }
   const bar = el(`<div class="top"><span class="grow">还剩 ${queue.length} 个</span></div>`);
+  const remove = el('<button class="link">移出生词本</button>');
+  remove.onclick = () => showMenu([['把「' + e.word + '」移出生词本', () => removeWord(e)]]);
+  bar.appendChild(remove);
   const end = el('<button class="link">结束</button>');
   end.onclick = () => call('close');
   bar.appendChild(end);
@@ -78,6 +82,13 @@ function rate(e, rating) {
   queue.shift();
   // 不认识：放到最后，这次结束前再出现一次（同 iPad）
   if (rating === 1) queue.push(Object.assign({}, e, { isNew: false }));
+  revealed = false;
+  show();
+}
+
+function removeWord(e) {
+  call('remove', { key: e.key, word: e.word });
+  queue = queue.filter(x => x.key !== e.key);
   revealed = false;
   show();
 }

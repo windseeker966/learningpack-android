@@ -40,6 +40,17 @@ public class PassageActivity extends WebActivity {
                 Ai.Completion c = Ai.complete(this, system, args.getString("user"), 1500);
                 return new JSONObject().put("text", c.text).put("usage", c.usage);
             }
+            case "lookup": {
+                // 划词加入生词本时查这个词在原句里的意思（同 iPad 的 VocabAI.meaningUser）
+                Ai.Completion c = Ai.complete(this, Ai.MEANING_SYSTEM,
+                        "划选：" + args.getString("word") + "\n原句：" + args.getString("sentence"), 400);
+                return c.text;
+            }
+            case "addWord":
+                return store.addVocab(args.getJSONObject("entry"), args.optBoolean("replaceOnly"));
+            case "removeWord":
+                store.removeVocab(args.getString("key"), args.optString("word"));
+                return true;
             case "remember":
                 store.rememberPassage(args.getJSONArray("keys"));
                 return true;

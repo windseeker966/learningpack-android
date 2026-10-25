@@ -23,8 +23,10 @@ import java.util.List;
 
 /** 首页：今天还有几道复习题、几个词、测过计算测速没有，iPad 上次同步的时间和今天在手机上学了多久；同步服务在这里启动 */
 public class MainActivity extends Activity {
+    /** 「做一大组」一组的题数（同 review.js 的 BIG_BLOCK）；题比一组 5 道多时才显示 */
+    private static final int BIG_BLOCK = 10;
     private TextView status, hint;
-    private Button review, vocab, passage, fact, guide;
+    private Button review, bigReview, vocab, passage, fact, guide;
     private final Runnable refresh = this::refresh;
 
     @Override
@@ -42,6 +44,9 @@ public class MainActivity extends Activity {
         box.setPadding(pad, pad, pad, pad);
 
         review = bigButton(box, v -> startActivity(new Intent(this, ReviewActivity.class)));
+        bigReview = bigButton(box, v -> startActivity(new Intent(this, ReviewActivity.class)
+                .putExtra(ReviewActivity.EXTRA_BLOCK, BIG_BLOCK)));
+        bigReview.setText("做一大组  " + BIG_BLOCK + " 道");
         vocab = bigButton(box, v -> startActivity(new Intent(this, VocabActivity.class)));
         passage = bigButton(box, v -> startActivity(new Intent(this, PassageActivity.class)));
         passage.setText("AI 短文复习生词");
@@ -109,6 +114,7 @@ public class MainActivity extends Activity {
                 ? "做复习题  " + questions + " 道 · 约 " + Math.max(1, Math.round(seconds / 60)) + " 分钟"
                 : "复习题都做完了");
         review.setEnabled(questions > 0);
+        bigReview.setVisibility(questions > 5 ? android.view.View.VISIBLE : android.view.View.GONE);
         vocab.setText(words > 0 ? "背单词  " + words + " 个" : "今天的单词背完了");
         vocab.setEnabled(words > 0);
         int perKind = 10;

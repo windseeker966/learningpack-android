@@ -1,9 +1,11 @@
-// 做今天的复习题：一组 5 道，选择题和填空题。判分、打乱选项、填空比对都同 iPad（Grading、OptionOrder、BlankMatcher）；
+// 做今天的复习题：一组 5 道（也可以一组 10 道），选择题和填空题。判分、打乱选项、填空比对都同 iPad（Grading、OptionOrder、BlankMatcher）；
 // 结果交给 Java 存着，等 iPad 来取（PROTOCOL.md 的 choice / blank）。iPad 会用当前题目重新判分。
 'use strict';
 
 const app = document.getElementById('app');
 const BLOCK = 5;
+// 一大组：组末「再来 10 道」，或首页「做一大组」进来
+const BIG_BLOCK = 10;
 const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'];
 const ROMAN_KEYS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ', 'Ⅶ', 'Ⅷ'];
@@ -134,10 +136,10 @@ const shown = new Set();
 let block = [], pos = 0, blockRight = 0, blockSkipped = 0, blockNo = 0;
 
 function load() {
-  startBlock();
+  startBlock(call('options').block || BLOCK);
 }
 
-function startBlock() {
+function startBlock(size) {
   queue = call('queue').filter(q => !shown.has(q.key));
   if (!queue.length) return finished();
   let picked = [];
@@ -146,7 +148,7 @@ function startBlock() {
     picked = queue.filter(q => q.kind === 'choice' && (q.lastRating === 3 || q.lastRating === 4)
       && (q.estimatedSeconds || 30) <= 60).slice(0, 3);
   }
-  for (const q of queue) { if (picked.length >= BLOCK) break; if (!picked.includes(q)) picked.push(q); }
+  for (const q of queue) { if (picked.length >= size) break; if (!picked.includes(q)) picked.push(q); }
   block = picked;
   pos = 0;
   blockRight = 0;
@@ -186,9 +188,14 @@ function blockDone() {
     <p>答对 ${blockRight} / ${block.length - blockSkipped} 道${blockSkipped ? '（跳过 ' + blockSkipped + ' 道）' : ''}${left ? '，今天还有 ' + left + ' 道' : '，今天的题都做完了'}</p></div>`));
   const row = el('<div class="row"></div>');
   if (left) {
-    const more = el('<button class="btn">再来一组</button>');
-    more.onclick = startBlock;
+    const more = el(`<button class="btn">再来一组${left > BLOCK ? '（' + BLOCK + ' 道）' : ''}</button>`);
+    more.onclick = () => startBlock(BLOCK);
     row.appendChild(more);
+    if (left > BLOCK) {
+      const big = el(`<button class="btn">再来 ${Math.min(BIG_BLOCK, left)} 道</button>`);
+      big.onclick = () => startBlock(BIG_BLOCK);
+      row.appendChild(big);
+    }
   }
   const end = el(`<button class="btn ${left ? 'plain' : ''}">结束</button>`);
   end.onclick = () => call('close');

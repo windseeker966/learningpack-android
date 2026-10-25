@@ -245,15 +245,53 @@ final class Store extends SQLiteOpenHelper {
 
     // ---- 单词 ----
 
-    /** 今天要背的词：这台手机上背过（结果还没被取走）的不算 */
+    /**
+     * 今天要背的词：这台手机上背过（结果还没被取走）的不算；但今天最后一次点的是「不认识」的词排到最后再背一次，
+     * 中途退出、再进来也还在（同 iPad 的 Vocab.relearnToday；取走后 iPad 推来的 due 里也会有它）
+     */
     synchronized List<JSONObject> vocabDue() throws Exception {
         List<JSONObject> out = new ArrayList<>();
         if (!pushIsToday()) return out;
         Set<String> done = pendingKeys("vocab");
+        java.util.LinkedHashMap<String, Integer> last = new java.util.LinkedHashMap<>();
+        try (Cursor c = getReadableDatabase().rawQuery(
+                "SELECT item_key, json FROM results WHERE type = 'vocab' AND at >= ? ORDER BY at",
+                new String[]{String.valueOf(startOfToday())})) {
+            while (c.moveToNext()) {
+                // 按最后一次的时间排：先删再放，放到最后
+                last.remove(c.getString(0));
+                last.put(c.getString(0), new JSONObject(c.getString(1)).optInt("rating"));
+            }
+        }
+        java.util.Map<String, JSONObject> entries = new java.util.HashMap<>();
         try (Cursor c = getReadableDatabase().rawQuery("SELECT key, json FROM vocab_due ORDER BY ord", null)) {
-            while (c.moveToNext()) if (!done.contains(c.getString(0))) out.add(new JSONObject(c.getString(1)));
+            while (c.moveToNext()) {
+                JSONObject e = new JSONObject(c.getString(1));
+                entries.put(c.getString(0), e);
+                if (!done.contains(c.getString(0))) out.add(e);
+            }
+        }
+        for (java.util.Map.Entry<String, Integer> r : last.entrySet()) {
+            if (r.getValue() != 1) continue;
+            JSONObject e = entries.containsKey(r.getKey()) ? entries.get(r.getKey()) : poolEntry(r.getKey());
+            if (e != null) out.add(new JSONObject(e.toString()).put("isNew", false));
         }
         return out;
+    }
+
+    private JSONObject poolEntry(String key) throws Exception {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT json FROM vocab_pool WHERE key = ?", new String[]{key})) {
+            return c.moveToFirst() ? new JSONObject(c.getString(0)) : null;
+        }
+    }
+
+    private static long startOfToday() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        c.set(java.util.Calendar.MINUTE, 0);
+        c.set(java.util.Calendar.SECOND, 0);
+        c.set(java.util.Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
     }
 
     synchronized List<JSONObject> vocabPool() throws Exception {

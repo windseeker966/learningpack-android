@@ -55,6 +55,7 @@ iPad 每次同步依次调用：
   "facts": {                      // 计算测速
     "doneToday": false,           // 今天在 iPad 上测完过一轮
     "perKind": 10,                // 每类出几题
+    "kinds": ["add", "sub", "div"],   // 现在练哪几类（FactKind.practiced）；没有这个字段时按全部四类
     "stats": {"sub:13:7": {"seconds": 3.1, "correct": false}}   // 每个事实最近一次的成绩（不算本轮重出的）
   }
 }
@@ -62,7 +63,7 @@ iPad 每次同步依次调用：
 
 计算测速的题由手机自己抽，规则同 iPad 的 `ArithmeticFacts`（`assets/web/fact.js` 照搬）：四类事实 `add`（a+b，a、b 为 2…9、和不小于 11）、
 `sub`（a−b，a 为 11…18，b 和差在 2…9）、`div`（a÷b，b 为 2…9、商 2…9）、`rem`（除数 a 为 2…9、商 b 为 1…9 的倍数区间，
-被除数在 a·b+1…a·b+a−1 随机），事实的 key 是 `<类>:<a>:<b>`。每类各抽 `perKind` 个，权重：没测过 2，上次答错 4，
+被除数在 a·b+1…a·b+a−1 随机），事实的 key 是 `<类>:<a>:<b>`。`kinds` 里的每类各抽 `perKind` 个，权重：没测过 2，上次答错 4，
 答对的 1 + min(max(用时 ÷ 熟练线 − 1, 0), 2)，熟练线 2 秒（带余除法 3 秒）。
 
 题单只含能在手机上做的题：选择题（不含阅读理解题），以及填空题（主观题里 `format: blank` 的）。综合题不发。

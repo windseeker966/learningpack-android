@@ -1,5 +1,5 @@
 // 计算测速（同 iPad 的 FactDrillView / FactDrillSession，规则照搬 ArithmeticFacts）：
-// 进位加法、退位减法、表内除法、带余除法各抽 perKind 题混在一起出，上次答错、答得慢、没测过的多抽。
+// 进位加法、退位减法、表内除法、带余除法里 iPad 说现在练的几类（setup.kinds）各抽 perKind 题混在一起出，上次答错、答得慢、没测过的多抽。
 // 屏幕键盘作答（带「余」键），从出题到点「确定」计时（只算亮屏时间），另记按第一个键的时间；
 // 答错显示正确答案，点「继续」再做，这道题在本轮最后再出一次（不计入成绩）。
 // 一轮结束（或中途退出）时记一条结果，等 iPad 来取（PROTOCOL.md 的 fact）
@@ -63,10 +63,13 @@ function weight(stat, kind) {
   return 1 + Math.min(Math.max(stat.seconds / fluentSeconds(kind) - 1, 0), 2);
 }
 
-/** 每类各 perKind 题，同一类不重复，按权重不放回地抽（Efraimidis–Spirakis），打乱后混在一起出 */
+/** iPad 推来的练哪几类（同 FactKind.practiced）；还没推过的按全部四类 */
+const practicedKinds = () => (setup.kinds || KINDS).filter(k => KINDS.includes(k));
+
+/** 现在练的每类各 perKind 题，同一类不重复，按权重不放回地抽（Efraimidis–Spirakis），打乱后混在一起出 */
 function dailyTest(perKind, stats) {
   let picked = [];
-  for (const kind of KINDS) {
+  for (const kind of practicedKinds()) {
     const keyed = facts(kind).map(f => [Math.pow(Math.random() || 1e-12, 1 / weight(stats[keyOf(f)], kind)), f]);
     keyed.sort((x, y) => y[0] - x[0]);
     picked = picked.concat(keyed.slice(0, perKind).map(x => x[1]));

@@ -416,7 +416,9 @@ final class Store extends SQLiteOpenHelper {
                 }
             }
         }
-        JSONObject out = new JSONObject().put("perKind", facts.optInt("perKind", 10)).put("stats", stats)
+        JSONArray kinds = facts.optJSONArray("kinds");
+        if (kinds == null) kinds = new JSONArray().put("add").put("sub").put("div").put("rem");
+        JSONObject out = new JSONObject().put("perKind", facts.optInt("perKind", 10)).put("kinds", kinds).put("stats", stats)
                 .put("doneToday", factDoneToday());
         JSONObject progress = new JSONObject(prefs().getString("factProgress", "{}"));
         if (today().equals(progress.optString("day"))) out.put("progress", progress);

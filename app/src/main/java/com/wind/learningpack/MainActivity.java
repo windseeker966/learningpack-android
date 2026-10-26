@@ -117,14 +117,16 @@ public class MainActivity extends Activity {
         bigReview.setVisibility(questions > 5 ? android.view.View.VISIBLE : android.view.View.GONE);
         vocab.setText(words > 0 ? "背单词  " + words + " 个" : "今天的单词背完了");
         vocab.setEnabled(words > 0);
-        int perKind = 10;
+        int perKind = 10, kinds = 4;
         try {
-            perKind = store.factSetup().optInt("perKind", 10);
+            JSONObject setup = store.factSetup();
+            perKind = setup.optInt("perKind", 10);
+            kinds = setup.getJSONArray("kinds").length();
         } catch (Exception ignored) {
         }
         int remaining = store.factRemaining();
         fact.setText(remaining > 0 ? "计算测速  继续 · 还剩 " + remaining + " 题"
-                : store.factDoneToday() ? "计算测速  今天测过了 · 再测一轮" : "计算测速  " + perKind * 4 + " 题");
+                : store.factDoneToday() ? "计算测速  今天测过了 · 再测一轮" : "计算测速  " + perKind * kinds + " 题");
 
         long last = store.prefs().getLong("lastSync", 0);
         int pending = store.pendingCount();

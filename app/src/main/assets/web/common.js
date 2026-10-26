@@ -76,8 +76,9 @@ function inline(text) {
   let s = String(text == null ? '' : text);
   s = s.replace(/`([^`\n]+)`/g, (_, c) => hold('<code>' + esc(c) + '</code>'));
   s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, m) => hold(tex(m, true)));
-  s = s.replace(/(^|[^\\$])\$([^$\n]+?)\$/g, (_, pre, m) => pre + hold(tex(m, false)));
-  s = esc(s);
+  // 公式里可以有转义的 \$（如 FOLLOW 集里的结束符 \{\,\$\,\}）；公式外的 \$ 是字面的 $
+  s = s.replace(/(^|[^\\$])\$((?:\\[\s\S]|[^$\\\n])+?)\$/g, (_, pre, m) => pre + hold(tex(m, false)));
+  s = esc(s).replace(/\\\$/g, '$');
   s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
   s = s.replace(/\n/g, '<br>');
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => keep[+i]);

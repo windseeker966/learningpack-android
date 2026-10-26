@@ -56,6 +56,7 @@ button { font: inherit; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .chip { border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 15px; background: var(--card); color: var(--text); }
 .chip.on { border-color: var(--accent); background: var(--chosen); color: var(--accent); font-weight: 600; }
+.chip.star.on { border-color: #f9a825; background: rgba(249, 168, 37, 0.14); color: #f9a825; }
 input[type=text], textarea { width: 100%; font: inherit; color: var(--text); background: var(--card);
   border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
 textarea { min-height: 3em; }

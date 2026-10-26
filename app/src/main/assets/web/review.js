@@ -285,6 +285,30 @@ function faultSheet(q, after) {
   document.body.appendChild(m);
 }
 
+// ---- 标为重点、已掌握（同 iPad 的 QuestionMarkControls：作答后都有）----
+
+// marks：{starred, mastered}，onToggle(flag) 改完后调用
+function markCard(marks, onToggle) {
+  const card = el('<div class="card"></div>');
+  const box = el('<div class="chips" style="margin:0"></div>');
+  const star = el(`<button class="chip star ${marks.starred ? 'on' : ''}">${marks.starred ? '★ 已标为重点' : '☆ 标为重点'}</button>`);
+  star.onclick = () => onToggle('starred');
+  const done = el(`<button class="chip ${marks.mastered ? 'on' : ''}">${marks.mastered ? '✓ 已掌握' : '标为已掌握'}</button>`);
+  done.onclick = () => onToggle('mastered');
+  box.append(star, done);
+  card.appendChild(box);
+  card.insertAdjacentHTML('beforeend', '<div class="muted" style="margin-top:6px">已掌握：不用再练这道题，下次复习推迟到至少两个月后；之后再答错会自动取消</div>');
+  return card;
+}
+
+// 交给 iPad 的是这道题最后的状态；和推来的（base）一样就撤掉没取走的那条。要在这次作答存好之后发，标记时间才在作答之后
+function sendMark(q, marks, base) {
+  call('mark', {
+    key: q.key, pack: q.pack, question: q.id, starred: marks.starred, mastered: marks.mastered,
+    changed: marks.starred !== base.starred || marks.mastered !== base.mastered,
+  });
+}
+
 function skipQuestion(q, forever) {
   call('skip', { key: q.key, pack: q.pack, question: q.id, forever });
   blockSkipped++;
@@ -323,7 +347,7 @@ function choiceView(q) {
   const st = {
     sel: c.type === 'multi_blank' ? (c.blanks || []).map(() => null) : (c.type === 'multi' ? '' : null),
     history: [], times: [], clock: new Clock(), fb: new Clock(), result: null, confidence: null, at: 0,
-    causes: new Set(), note: '',
+    causes: new Set(), note: '', marks: null, markBase: null,
   };
   st.clock.start();
 
@@ -341,6 +365,9 @@ function choiceView(q) {
     st.at = Date.now();
     st.result = grade(c, st.sel);
     if (!st.result.correct) st.causes = new Set(['not_learned']);
+    // 已掌握的标记这次答错就不算数了（同 iPad）
+    st.markBase = { starred: !!q.starred, mastered: !!q.mastered && st.result.correct };
+    st.marks = Object.assign({}, st.markBase);
     st.fb.start();
     st.id = uuid();
     st.session = call('session', { workStarted: st.at - st.clock.seconds * 1000 });
@@ -491,6 +518,11 @@ function choiceView(q) {
       }
       app.appendChild(cause);
     }
+    app.appendChild(markCard(st.marks, flag => {
+      st.marks[flag] = !st.marks[flag];
+      sendMark(q, st.marks, st.markBase);
+      render();
+    }));
   }
 
   render();
@@ -504,6 +536,7 @@ function blankView(q) {
   const st = {
     inputs: parts.map(() => ''), clock: new Clock(), fb: new Clock(), createdAt: Date.now(),
     revealedAt: 0, confidence: null, results: {}, causes: {}, notes: {}, auto: [], session: null,
+    starred: !!q.starred, mastered: null,   // mastered 为 null：没动过，跟着自评（有没做对的空就不算已掌握）
   };
   st.clock.start();
 
@@ -526,6 +559,15 @@ function blankView(q) {
     render();
   };
 
+  const anyWrong = () => parts.some(p => st.results[p.label] === 'wrong' || st.results[p.label] === 'blank');
+  const markBase = () => ({ starred: !!q.starred, mastered: !!q.mastered && !anyWrong() });
+  const marks = () => ({ starred: st.starred, mastered: st.mastered === null ? markBase().mastered : st.mastered });
+  // 改了之后调 after 重画
+  const blankMarkCard = after => markCard(marks(), flag => {
+    if (flag === 'starred') st.starred = !st.starred; else st.mastered = !marks().mastered;
+    after();
+  });
+
   const save = () => {
     st.fb.stop();
     const labels = parts.map(p => p.label);
@@ -542,6 +584,7 @@ function blankView(q) {
       sessionID: st.session.sessionID, sessionIndex: st.session.sessionIndex,
     };
     call('submit', { key: q.key, result });
+    sendMark(q, marks(), markBase());
     return labels.every(l => st.results[l] === 'correct');
   };
 
@@ -557,6 +600,8 @@ function blankView(q) {
     app.appendChild(row);
     app.appendChild(el('<div class="card"><div class="banner right">全部填对了</div></div>'));
     app.appendChild(answerCard());
+    // 全部填对、已经存好了：标记直接发
+    app.appendChild(blankMarkCard(() => { sendMark(q, marks(), markBase()); done(right); }));
   };
 
   function questionCard() {
@@ -635,6 +680,7 @@ function blankView(q) {
       assess.appendChild(box);
     });
     app.appendChild(assess);
+    app.appendChild(blankMarkCard(render));
     const row = el('<div class="row"></div>');
     const submitBtn = el('<button class="btn">提交自评，下一题</button>');
     submitBtn.disabled = !canSubmit();

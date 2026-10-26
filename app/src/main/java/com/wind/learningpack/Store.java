@@ -247,6 +247,18 @@ final class Store extends SQLiteOpenHelper {
         addResult(r, key);
     }
 
+    /**
+     * 标为重点、已掌握（PROTOCOL.md 的 mark）：同一道题只留最后的状态；和 iPad 推来的一样（又改回去了）就不发
+     */
+    synchronized void markQuestion(String key, JSONObject r, boolean changed) throws Exception {
+        int n = getWritableDatabase().delete("results", "type = 'mark' AND item_key = ?", new String[]{key});
+        if (!changed) {
+            if (n > 0) changed();
+            return;
+        }
+        addResult(r, key);
+    }
+
     synchronized void skip(String key, boolean forever) {
         ContentValues v = new ContentValues();
         v.put("key", key);

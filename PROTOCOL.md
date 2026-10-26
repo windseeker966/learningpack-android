@@ -78,6 +78,8 @@ iPad 每次同步依次调用：
   "contentHash": "…",             // 选择题同 Grader.contentHash；填空题同 SubjectiveRecords.contentHash
   "lastRating": 3,                // 上一次的评分（FSRSRating 原始值），没有为 null；热身题用
   "estimatedSeconds": 26.0,       // 预计用时
+  "starred": false,               // 标为重点（QuestionMark.starred）
+  "mastered": false,              // 标为已掌握，且之后没再答错（WrongBook.isMastered）
   "choice": {                     // kind == choice 时
     "type": "single",             // single | combo | multi_blank | multi | judge
     "polarity": "positive",       // positive | negative（问「错误的是」）
@@ -216,6 +218,18 @@ iPad 记一条 `FactDrill`（`phoneID` 是这条的 id；同一个 id 再来时�
 做题时点「有错」标记题干、选项、答案或解析有误（同 iPad 的「标记题目有错…」）。iPad 写进 `QuestionMark`（`faultyAt` 已有的保留原来的时间），
 重算复习安排：标了有错的题不再复习，之后也不再推给手机。同一道题手机上只留最后一条；还没被取走就取消的，手机直接删掉这条，不发 `faulty: false`。
 还没作答就标的，这道题本次不做（同跳过）；作答过再标的，作答照样发。
+
+### 重点、已掌握 `mark`
+
+```json
+{"id": "…", "type": "mark", "pack": "…", "question": "…", "at": 1761360000000,
+ "starred": true, "mastered": false}   // 这道题在手机上最后的状态
+```
+
+选择题提交后、填空题看答案后，可以「标为重点」「标为已掌握」（同 iPad 的 `QuestionMarkControls`）。
+起点是 push 里的 `starred`、`mastered`，这次答错了 `mastered` 从 false 算起。同一道题手机上只留最后一条；改回和 push 一样的就删掉没取走的那条。
+这条在这次作答存好之后才发，`at` 晚于作答。iPad 在同一批的其他结果都导入后再处理 `mark`：`starred` 照写；
+`mastered` 和 iPad 上现在是否算数（标过且之后没再答错）不同时才改：为真记 `masteredAt = at`，为假清掉；然后重算复习安排。
 
 ### 跳过 `skip`
 

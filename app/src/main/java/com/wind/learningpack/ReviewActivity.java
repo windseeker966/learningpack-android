@@ -41,6 +41,12 @@ public class ReviewActivity extends WebActivity {
                         .put("note", args.isNull("note") ? JSONObject.NULL : args.optString("note"))
                         .put("at", System.currentTimeMillis()));
                 return true;
+            case "mark":
+                store.markQuestion(args.getString("key"), new JSONObject().put("type", "mark")
+                        .put("pack", args.optString("pack")).put("question", args.optString("question"))
+                        .put("starred", args.optBoolean("starred")).put("mastered", args.optBoolean("mastered"))
+                        .put("at", System.currentTimeMillis()), args.optBoolean("changed"));
+                return true;
             default:
                 throw new IllegalArgumentException("未知的方法：" + method);
         }

@@ -52,6 +52,11 @@ iPad 每次同步依次调用：
     "pool": [ <词>, … ],          // AI 短文复习可以挑的词：背过的全部词
     "recentPassageKeys": ["<词 key>", …]  // 最近一小时 AI 短文里挑过的词，不再挑
   },
+  "studyCode": {                  // iPad 上今天学的（不含手机），手机转交给「时间记录」App 换手机额度；iPad 还没有学习码的配对密钥时没有这个字段
+    "day": "2026-10-25",          // 早上 5 点切分（同学习码）
+    "minutes": 95, "starts": 3,
+    "code": "123456"              // 同学习码的校验码：HMAC-SHA256(学习码配对密钥, "日期|分钟|次数")…，见 iPad 的 StudyCode
+  },
   "facts": {                      // 计算测速
     "doneToday": false,           // 今天在 iPad 上测完过一轮
     "perKind": 10,                // 每类出几题

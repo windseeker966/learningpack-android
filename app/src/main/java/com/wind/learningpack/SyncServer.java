@@ -111,7 +111,9 @@ final class SyncServer {
                             .put("study", StudyTime.get(context).today()).toString());
                     break;
                 case "POST /push": {
-                    List<String> need = store.applyPush(new JSONObject(new String(body, StandardCharsets.UTF_8)));
+                    JSONObject push = new JSONObject(new String(body, StandardCharsets.UTF_8));
+                    List<String> need = store.applyPush(push);
+                    BudgetReport.ipad(context, push.optJSONObject("studyCode"));
                     respond(s, 200, new JSONObject().put("needImages", new JSONArray(need)).toString());
                     break;
                 }

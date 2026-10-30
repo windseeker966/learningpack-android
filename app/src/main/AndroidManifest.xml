@@ -12,11 +12,12 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <!-- 朗读用系统的文字转语音引擎 -->
+    <!-- 朗读用系统的文字转语音引擎；学习时间报给「时间记录」App 换手机额度 -->
     <queries>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
+        <provider android:authorities="com.wind.timetracker.events" />
     </queries>
 
     <application

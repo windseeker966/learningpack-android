@@ -255,3 +255,44 @@ iPad 记一条 `FactDrill`（`phoneID` 是这条的 id；同一个 id 再来时�
 手机今天（早上 5 点切分，同 iPad 的 `StudyPacePolicy.dayKey`）在做题、背单词、短文复习、计算测速页面亮屏在前台的累计秒数，
 和开始次数（规则同 iPad：离开不到 10 分钟接着算同一段连续学习，一段满 10 分钟算开始一次）。每次都是当天的累计值，不用确认；
 iPad 存下同一天里最大的一次，把分钟数和开始次数加进手机额度的学习码（`StudyCode`）。手机的「时间记录」不再给 LearningPack 手机复习扣额度。
+
+## 中转：不在同一个网络时
+
+iPad 找不到局域网里的手机时，改走中转服务器（甲骨文云上的 `lp-relay`，代码在 `relay/lp_relay.py`，默认地址
+`129.146.200.163:47322`，两边设置里都能改）。服务器只是一个信箱：存取加密过的数据块，不认识内容，也不做计算。
+手机和 iPad 各自定时去收发，两台设备不用同时在线。局域网能连上时照旧走局域网。
+
+### 信箱和加密
+
+- 信箱号：`hex(HMAC-SHA256(配对密钥, "lp-relay-box"))` 的前 32 个字符。不知道配对密钥就找不到信箱。
+- 加密：密钥 `HMAC-SHA256(配对密钥, "lp-relay-key")`（32 字节），AES-256-GCM，每次随机 12 字节 nonce；
+  存的是 `nonce ‖ 密文 ‖ 16 字节 tag`。附加数据（AAD）是这块的用途：`up`、`down`、`img:<sha>`，防止被挪作他用。
+  配对密钥的用法同上面的签名（去掉连字符、转大写后的 ASCII 字节）。
+- 服务器上只有密文，看不到、也改不了内容；解不开的块一律丢掉。
+
+### 服务器的接口
+
+HTTP/1.1，`Connection: close`。`<box>` 是 32 个小写十六进制字符，`<sha>` 是 64 个。
+
+- `GET /box/<box>/up`、`GET /box/<box>/down`：200 和存的块，带 `ETag`；没有时 404。请求带 `If-None-Match` 且没变时 304。
+- `PUT /box/<box>/up`、`PUT /box/<box>/down`：请求体是块，覆盖旧的；204。
+- `POST /box/<box>/missing`：请求体 `["<sha>", …]`，响应 `{"missing":["<sha>", …]}`：服务器上还没有的图片（已有的顺带延长保存期）。
+- `GET /box/<box>/img/<sha>`、`PUT /box/<box>/img/<sha>`：图片块。
+- `GET /ping`：`ok`。
+- 单块最大 16 MB；30 天没更新的块删掉。
+
+### 手机
+
+每 2 分钟一次（有新的作答结果时 5 秒后再来一次）：
+
+1. `PUT up`：`{"v":1, "sentAt":<Unix 毫秒>, "results":[…], "study":{…}}`，内容同 `/pull` 的响应。
+2. `GET down`：解开得到 push 的请求体。`generatedAt` 比上次用过的 push（局域网或中转）新才用，处理同 `/push`
+   （删掉 `ack` 里的结果、替换题单、转交 `studyCode`）；题单里缺的图片 `GET img/<sha>`，解开后核对哈希再存。
+
+### iPad
+
+局域网找不到手机时（配对密钥不对的除外）：
+
+1. `GET up`，处理同 `/pull` 的响应（结果按 `id` 去重）。
+2. 做好 push（`ack` 是这次取回的结果），`PUT down`。
+3. 题单里用到的图片 `POST missing`，缺的 `PUT img/<sha>`。

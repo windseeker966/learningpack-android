@@ -26,7 +26,7 @@ import java.util.List;
 
 /**
  * 前台服务：开着同步用的 HTTP 服务（SyncServer），用 mDNS 广播 _lpreview._tcp，TXT 里写手机现在的局域网 IP。
- * 开关热点、换 Wi-Fi 后 IP 会变：每 20 秒看一次，变了就重新广播。
+ * 开关热点、换 Wi-Fi 后 IP 会变：每 20 秒看一次，变了就重新广播。不在同一个网络时经中转服务器收发（Relay）。
  */
 public class SyncService extends Service {
     private static final String TAG = "SyncService";
@@ -34,6 +34,7 @@ public class SyncService extends Service {
     static final String SERVICE_TYPE = "_lpreview._tcp";
 
     private SyncServer server;
+    private Relay relay;
     private NsdManager nsd;
     private NsdManager.RegistrationListener registration;
     private WifiManager.MulticastLock multicast;
@@ -59,7 +60,7 @@ public class SyncService extends Service {
         Notification n = new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
                 .setContentTitle("等 iPad 来同步")
-                .setContentText("iPad 打开 LearningPack 时自动同步复习题和作答")
+                .setContentText("iPad 打开 LearningPack 时自动同步复习题和作答；不在一个网络时经中转服务器")
                 .setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
                         PendingIntent.FLAG_IMMUTABLE))
                 .setOngoing(true)
@@ -71,6 +72,8 @@ public class SyncService extends Service {
         }
         server = new SyncServer(this);
         server.start();
+        relay = new Relay(this);
+        relay.start();
         nsd = getSystemService(NsdManager.class);
         WifiManager wifi = getSystemService(WifiManager.class);
         if (wifi != null) {
@@ -91,6 +94,7 @@ public class SyncService extends Service {
         handler.removeCallbacks(watch);
         unregister();
         if (server != null) server.stop();
+        if (relay != null) relay.stop();
         if (multicast != null && multicast.isHeld()) multicast.release();
         super.onDestroy();
     }

@@ -147,6 +147,11 @@ final class Store extends SQLiteOpenHelper {
         return new ArrayList<>(need);
     }
 
+    /** 上次用过的 push 的生成时间（iPad 的 Unix 毫秒）；中转来的 push 比它新才用 */
+    long generatedAt() {
+        return prefs().getLong("generatedAt", 0);
+    }
+
     File image(String sha) {
         File dir = new File(app.getFilesDir(), "images");
         //noinspection ResultOfMethodCallIgnored

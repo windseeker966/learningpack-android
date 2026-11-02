@@ -52,6 +52,9 @@ iPad 每次同步依次调用：
     "pool": [ <词>, … ],          // AI 短文复习可以挑的词：背过的全部词
     "recentPassageKeys": ["<词 key>", …]  // 最近一小时 AI 短文里挑过的词，不再挑
   },
+  "phrases": {
+    "due": [ <说法卡>, … ]         // 今天要背的说法卡（到期的、新放进来的、今天还要再背一次的），按 iPad 的顺序（PhraseDeck.dueToday）
+  },
   "studyCode": {                  // iPad 上今天学的（不含手机），手机转交给「时间记录」App 换手机额度；iPad 还没有学习码的配对密钥时没有这个字段
     "day": "2026-10-25",          // 早上 5 点切分（同学习码）
     "minutes": 95, "starts": 3,
@@ -118,6 +121,17 @@ iPad 每次同步依次调用：
  "note": "…", "isNew": false, "source": "…"}
 ```
 
+### 说法卡
+
+```json
+{"key": "<PhraseCard.key，packID|说法卡 id>", "cue": "全面建成社会主义现代化强国的**战略先导**", "answer": "建设教育强国",
+ "tag": "new",                    // new 新卡 | seeded 放进来时因原题选错过先记了「重来」| relearn 今天点过「重来」| review 复习
+ "sources": ["1.8-Q04"],          // 考到它的题
+ "confusable": [{"cue": "…", "answer": "…"}]}   // 背面一起列出的易混说法
+```
+
+`cue` 里的关键词写成 `**加粗**`。说法卡什么时候放进来、哪些题因此不再进题单，都由 iPad 决定（见 LearningPack 的 `PhraseUnlock`）。
+
 ## pull：手机 → iPad 的作答结果
 
 每条结果都有 `id`（手机生成的 UUID）和 `type`。时间都是 Unix 毫秒。
@@ -162,6 +176,15 @@ iPad 每次同步依次调用：
 ```
 
 `rating` 是 FSRSRating 原始值：1 不认识、2 模糊、3 认识、4 太简单。同一个词一次背单词里可能有多条（「不认识」后同一轮再出现）。
+
+### 说法卡 `phrase`
+
+```json
+{"id": "…", "type": "phrase", "key": "<PhraseCard.key>", "rating": 3, "at": 1761360000000}
+```
+
+`rating` 同背单词：1 重来、2 模糊、3 记得、4 太简单。iPad 按时间并进这张卡的评分历史（同 `vocab`）；卡在 iPad 上已经没有了就不管。
+今天最后一次点「重来」的卡，手机上排到最后再背一次，取走后 iPad 推来的 `due` 里也会有它。
 
 ### AI 短文复习 `passage`
 

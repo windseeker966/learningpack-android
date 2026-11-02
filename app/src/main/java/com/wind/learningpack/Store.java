@@ -25,7 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 这台手机上的数据：iPad 推来的今天的复习题和单词、计算测速的各事实成绩（每次推送整个替换）、还没被 iPad 取走的作答结果、跳过的题、图片。
+ * 这台手机上的数据：iPad 推来的今天的复习题、单词和说法卡、计算测速的各事实成绩（每次推送整个替换）、还没被 iPad 取走的作答结果、跳过的题、图片。
  * 作答结果被 iPad 确认（ack）后就删掉：iPad 上的 LearningPack 才是权威数据。
  */
 final class Store extends SQLiteOpenHelper {
@@ -40,7 +40,7 @@ final class Store extends SQLiteOpenHelper {
     }
 
     private Store(Context c) {
-        super(c, "learningpack.db", null, 1);
+        super(c, "learningpack.db", null, 2);
         app = c;
     }
 
@@ -51,10 +51,14 @@ final class Store extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE vocab_pool (key TEXT PRIMARY KEY, json TEXT)");
         db.execSQL("CREATE TABLE results (id TEXT PRIMARY KEY, type TEXT, item_key TEXT, at INTEGER, json TEXT)");
         db.execSQL("CREATE TABLE skips (key TEXT PRIMARY KEY, day TEXT, forever INTEGER)");
+        db.execSQL("CREATE TABLE phrase_due (key TEXT PRIMARY KEY, ord INTEGER, json TEXT)");
     }
 
     @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {}
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // 2：说法卡
+        if (oldVersion < 2) db.execSQL("CREATE TABLE phrase_due (key TEXT PRIMARY KEY, ord INTEGER, json TEXT)");
+    }
 
     SharedPreferences prefs() {
         return app.getSharedPreferences("sync", Context.MODE_PRIVATE);
@@ -127,6 +131,17 @@ final class Store extends SQLiteOpenHelper {
                     v.put("json", e.toString());
                     db.insertWithOnConflict("vocab_pool", null, v, SQLiteDatabase.CONFLICT_REPLACE);
                 }
+            }
+            db.delete("phrase_due", null, null);
+            JSONObject phrases = push.optJSONObject("phrases");
+            JSONArray phraseDue = phrases == null ? null : phrases.optJSONArray("due");
+            for (int i = 0; phraseDue != null && i < phraseDue.length(); i++) {
+                JSONObject e = phraseDue.getJSONObject(i);
+                ContentValues v = new ContentValues();
+                v.put("key", e.getString("key"));
+                v.put("ord", i);
+                v.put("json", e.toString());
+                db.insertWithOnConflict("phrase_due", null, v, SQLiteDatabase.CONFLICT_REPLACE);
             }
             db.delete("skips", "forever = 0 AND day != ?", new String[]{today()});
             db.setTransactionSuccessful();
@@ -323,6 +338,40 @@ final class Store extends SQLiteOpenHelper {
         c.set(java.util.Calendar.SECOND, 0);
         c.set(java.util.Calendar.MILLISECOND, 0);
         return c.getTimeInMillis();
+    }
+
+    // ---- 说法卡 ----
+
+    /**
+     * 今天要背的说法卡：这台手机上背过（结果还没被取走）的不算；今天最后一次点的是「重来」的卡排到最后再背一次
+     * （同 iPad 的 PhraseDeck.relearnToday；取走后 iPad 推来的 due 里也会有它）
+     */
+    synchronized List<JSONObject> phraseDue() throws Exception {
+        List<JSONObject> out = new ArrayList<>();
+        if (!pushIsToday()) return out;
+        Set<String> done = pendingKeys("phrase");
+        java.util.LinkedHashMap<String, Integer> last = new java.util.LinkedHashMap<>();
+        try (Cursor c = getReadableDatabase().rawQuery(
+                "SELECT item_key, json FROM results WHERE type = 'phrase' AND at >= ? ORDER BY at",
+                new String[]{String.valueOf(startOfToday())})) {
+            while (c.moveToNext()) {
+                last.remove(c.getString(0));
+                last.put(c.getString(0), new JSONObject(c.getString(1)).optInt("rating"));
+            }
+        }
+        java.util.Map<String, JSONObject> cards = new java.util.HashMap<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT key, json FROM phrase_due ORDER BY ord", null)) {
+            while (c.moveToNext()) {
+                JSONObject e = new JSONObject(c.getString(1));
+                cards.put(c.getString(0), e);
+                if (!done.contains(c.getString(0))) out.add(e);
+            }
+        }
+        for (java.util.Map.Entry<String, Integer> r : last.entrySet()) {
+            if (r.getValue() != 1 || !cards.containsKey(r.getKey())) continue;
+            out.add(new JSONObject(cards.get(r.getKey()).toString()).put("tag", "relearn"));
+        }
+        return out;
     }
 
     /** AI 短文复习能挑的词：移出生词本的不算 */

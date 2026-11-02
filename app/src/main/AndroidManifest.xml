@@ -51,6 +51,12 @@
             android:theme="@style/AppTheme.NoTitle" />
 
         <activity
+            android:name=".PhraseActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoTitle" />
+
+        <activity
             android:name=".PassageActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:exported="false"

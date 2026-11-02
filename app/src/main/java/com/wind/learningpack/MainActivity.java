@@ -21,12 +21,12 @@ import org.json.JSONObject;
 import java.util.Date;
 import java.util.List;
 
-/** 首页：今天还有几道复习题、几个词、测过计算测速没有，iPad 上次同步的时间和今天在手机上学了多久；同步服务在这里启动 */
+/** 首页：今天还有几道复习题、几个词、几张说法卡、测过计算测速没有，iPad 上次同步的时间和今天在手机上学了多久；同步服务在这里启动 */
 public class MainActivity extends Activity {
     /** 「做一大组」一组的题数（同 review.js 的 BIG_BLOCK）；题比一组 5 道多时才显示 */
     private static final int BIG_BLOCK = 10;
     private TextView status, hint;
-    private Button review, bigReview, vocab, passage, fact, guide;
+    private Button review, bigReview, vocab, phrase, passage, fact, guide;
     private final Runnable refresh = this::refresh;
 
     @Override
@@ -48,6 +48,7 @@ public class MainActivity extends Activity {
                 .putExtra(ReviewActivity.EXTRA_BLOCK, BIG_BLOCK)));
         bigReview.setText("做一大组  " + BIG_BLOCK + " 道");
         vocab = bigButton(box, v -> startActivity(new Intent(this, VocabActivity.class)));
+        phrase = bigButton(box, v -> startActivity(new Intent(this, PhraseActivity.class)));
         passage = bigButton(box, v -> startActivity(new Intent(this, PassageActivity.class)));
         passage.setText("AI 短文复习生词");
         fact = bigButton(box, v -> startActivity(new Intent(this, FactActivity.class)));
@@ -101,13 +102,14 @@ public class MainActivity extends Activity {
 
     private void refresh() {
         Store store = Store.get(this);
-        int questions = 0, words = 0;
+        int questions = 0, words = 0, phrases = 0;
         double seconds = 0;
         try {
             List<JSONObject> q = store.reviewQueue();
             questions = q.size();
             for (JSONObject o : q) seconds += o.optDouble("estimatedSeconds", 30);
             words = store.vocabDue().size();
+            phrases = store.phraseDue().size();
         } catch (Exception ignored) {
         }
         review.setText(questions > 0
@@ -117,6 +119,8 @@ public class MainActivity extends Activity {
         bigReview.setVisibility(questions > 5 ? android.view.View.VISIBLE : android.view.View.GONE);
         vocab.setText(words > 0 ? "背单词  " + words + " 个" : "今天的单词背完了");
         vocab.setEnabled(words > 0);
+        phrase.setText(phrases > 0 ? "说法卡  " + phrases + " 张" : "今天的说法卡背完了");
+        phrase.setEnabled(phrases > 0);
         int perKind = 10, kinds = 4;
         try {
             JSONObject setup = store.factSetup();

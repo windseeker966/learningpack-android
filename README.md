@@ -16,7 +16,7 @@ iPad 上的 LearningPack（`/Users/wind/vscode/Learning`）的手机端，用来
 - 作答计时只算 App 在前台、题目在屏幕上的时间。
 - 学习时间：做题、背单词、背说法卡、短文复习、计算测速页面在前台的时间记为今天的学习时间（首页显示），同步时交给 iPad，加进 iPad 上手机额度的学习码（分钟和开始次数，规则同 iPad）。手机的「时间记录」把这个 App 列入白名单，不扣额度。
 - 中转（`Relay.java`，协议见 PROTOCOL.md 的「中转」）：不在同一个网络时 iPad 连不上手机，同步服务每 2 分钟去中转服务器（默认 `129.146.200.163:47322`，设置里能改）放下作答结果和学习时间、取 iPad 放下的题单和图片；有新的作答结果时 5 秒后再去一次。内容用配对密钥加密（`RelayCrypto.java`，和 iPad 的 `PhoneRelayCrypto` 一致），服务器看不到。服务器代码和 systemd 配置在 `relay/`，部署见 `relay/deploy.sh`。
-- 换手机额度（`BudgetReport.java`）：学习页面在前台时，每次计时（约 30 秒）把今天的累计秒数和开始次数报给「时间记录」App（`content://com.wind.timetracker.events` 的 `study` 方法）；iPad 同步时推来的 iPad 学习码（push 的 `studyCode`）原样转交，由时间记录 App 核对校验码。这样学完马上就有额度，不用手动输入学习码。
+- **（已关闭：`BudgetReport` 的调用处已注释掉）** 换手机额度（`BudgetReport.java`）：学习页面在前台时，每次计时（约 30 秒）把今天的累计秒数和开始次数报给「时间记录」App（`content://com.wind.timetracker.events` 的 `study` 方法）；iPad 同步时推来的 iPad 学习码（push 的 `studyCode`）原样转交，由时间记录 App 核对校验码。这样学完马上就有额度，不用手动输入学习码。
 
 ## 同步
 

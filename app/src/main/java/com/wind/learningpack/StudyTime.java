@@ -15,7 +15,7 @@ import java.util.Locale;
  * 一天从早上 5 点算起；离开不到 10 分钟接着算这段连续学习，否则重新算；一段连续学满 10 分钟算开始一次；
  * 两次计时之间最多记 120 秒（进程被挂起后醒来，不把挂起的时间都算进去）。
  * 当天累计存 SharedPreferences，进程被杀后接得上。各页面在主线程调用，同步服务在自己的线程读，方法全部同步。
- * 学习页面在前台时，每次计时后把当天累计报给手机的「时间记录」App 换额度（BudgetReport）。
+ * （已关闭）学习页面在前台时，每次计时后把当天累计报给手机的「时间记录」App 换额度（BudgetReport）。
  */
 final class StudyTime {
     static final int DAY_START_HOUR = 5;
@@ -85,7 +85,7 @@ final class StudyTime {
             }
         }
         e.putLong("ms", ms).putInt("starts", starts).apply();
-        if (lastTick > 0) BudgetReport.phone(context, day, ms / 1000, starts);
+        // if (lastTick > 0) BudgetReport.phone(context, day, ms / 1000, starts);  // 手机额度已关闭：不再报给「时间记录」
     }
 
     /** 交给 iPad 的今天累计：{"day", "seconds", "starts"} */

@@ -99,7 +99,7 @@ final class Relay {
         JSONObject push = new JSONObject(new String(RelayCrypto.open(down.body, secret, "down"), StandardCharsets.UTF_8));
         if (push.optLong("generatedAt") > store.generatedAt()) {
             List<String> need = store.applyPush(push);
-            BudgetReport.ipad(context, push.optJSONObject("studyCode"));
+            // BudgetReport.ipad(context, push.optJSONObject("studyCode"));  // 手机额度已关闭：不再报给「时间记录」
             for (String sha : need) {
                 Response img = get(base + "/img/" + sha, null);
                 if (img != null) store.saveImage(sha, RelayCrypto.open(img.body, secret, "img:" + sha));

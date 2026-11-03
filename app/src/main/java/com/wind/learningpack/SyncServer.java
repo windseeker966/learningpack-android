@@ -113,7 +113,7 @@ final class SyncServer {
                 case "POST /push": {
                     JSONObject push = new JSONObject(new String(body, StandardCharsets.UTF_8));
                     List<String> need = store.applyPush(push);
-                    BudgetReport.ipad(context, push.optJSONObject("studyCode"));
+                    // BudgetReport.ipad(context, push.optJSONObject("studyCode"));  // 手机额度已关闭：不再报给「时间记录」
                     respond(s, 200, new JSONObject().put("needImages", new JSONArray(need)).toString());
                     break;
                 }

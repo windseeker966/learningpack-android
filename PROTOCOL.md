@@ -319,3 +319,16 @@ HTTP/1.1，`Connection: close`。`<box>` 是 32 个小写十六进制字符，`<
 1. `GET up`，处理同 `/pull` 的响应（结果按 `id` 去重）。
 2. 做好 push（`ack` 是这次取回的结果），`PUT down`。
 3. 题单里用到的图片 `POST missing`，缺的 `PUT img/<sha>`。
+
+## 给 Mac 的学习时间
+
+Mac 上的「上午先学后折腾」提醒（time-tracker-macos 的 `morning_guard.py`）要知道今天学没学。都经 Tailscale，签名同上面「配对和签名」（同一个配对密钥）：
+
+- 手机上学的：Mac 定时 `POST /pull` 到手机的 Tailscale 地址（端口 47321），只读响应里的 `study`。`/pull` 不改手机上的数据（作答结果要等 `/push` 的 `ack` 才删），不影响 iPad 同步。连不上时 Mac 改读中转服务器的 `up`。
+- iPad 上学的：iPad 开不了常驻服务，由它在学习时间变了时（一段连续学习满 10 分钟、或分钟数变了且距上次超过 2 分钟、进后台时）`POST /study` 到 Mac 的 Tailscale 地址，端口 **47323**：
+
+```json
+{"v": 1, "sentAt": 1762650000000, "day": "2026-11-09", "seconds": 1260, "starts": 1, "active": true}
+```
+
+  `day`、`seconds`、`starts` 的算法同学习码里 iPad 的部分（`IPadStudyTime`：早上 5 点切分，不含「浏览器」标签页，一段连续学习满 10 分钟算开始一次），`active` 是发出时 App 在不在前台。Mac 校验请求签名后回 `200 {"ok":true}`，响应同样签名。

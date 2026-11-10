@@ -282,14 +282,14 @@ iPad 存下同一天里最大的一次，把分钟数和开始次数加进手机
 ## 中转：不在同一个网络时
 
 iPad 找不到局域网里的手机时，改走中转服务器（甲骨文云上的 `lp-relay`，代码在 `relay/lp_relay.py`，默认地址
-`129.146.200.163:47322`，两边设置里都能改）。服务器只是一个信箱：存取加密过的数据块，不认识内容，也不做计算。
+`129.151.25.78:47322`，两边设置里都能改）。服务器只是一个信箱：存取加密过的数据块，不认识内容，也不做计算。
 手机和 iPad 各自定时去收发，两台设备不用同时在线。局域网能连上时照旧走局域网。
 
 ### 信箱和加密
 
 - 信箱号：`hex(HMAC-SHA256(配对密钥, "lp-relay-box"))` 的前 32 个字符。不知道配对密钥就找不到信箱。
 - 加密：密钥 `HMAC-SHA256(配对密钥, "lp-relay-key")`（32 字节），AES-256-GCM，每次随机 12 字节 nonce；
-  存的是 `nonce ‖ 密文 ‖ 16 字节 tag`。附加数据（AAD）是这块的用途：`up`、`down`、`img:<sha>`，防止被挪作他用。
+  存的是 `nonce ‖ 密文 ‖ 16 字节 tag`。附加数据（AAD）是这块的用途：`up`、`down`、`study`、`img:<sha>`，防止被挪作他用。
   配对密钥的用法同上面的签名（去掉连字符、转大写后的 ASCII 字节）。
 - 服务器上只有密文，看不到、也改不了内容；解不开的块一律丢掉。
 
@@ -297,8 +297,8 @@ iPad 找不到局域网里的手机时，改走中转服务器（甲骨文云上
 
 HTTP/1.1，`Connection: close`。`<box>` 是 32 个小写十六进制字符，`<sha>` 是 64 个。
 
-- `GET /box/<box>/up`、`GET /box/<box>/down`：200 和存的块，带 `ETag`；没有时 404。请求带 `If-None-Match` 且没变时 304。
-- `PUT /box/<box>/up`、`PUT /box/<box>/down`：请求体是块，覆盖旧的；204。
+- `GET /box/<box>/<slot>`（`slot` 是 `up`、`down`、`study`）：200 和存的块，带 `ETag`；没有时 404。请求带 `If-None-Match` 且没变时 304。
+- `PUT /box/<box>/<slot>`：请求体是块，覆盖旧的；204。
 - `POST /box/<box>/missing`：请求体 `["<sha>", …]`，响应 `{"missing":["<sha>", …]}`：服务器上还没有的图片（已有的顺带延长保存期）。
 - `GET /box/<box>/img/<sha>`、`PUT /box/<box>/img/<sha>`：图片块。
 - `GET /ping`：`ok`。
@@ -322,13 +322,13 @@ HTTP/1.1，`Connection: close`。`<box>` 是 32 个小写十六进制字符，`<
 
 ## 给 Mac 的学习时间
 
-Mac 上的「上午先学后折腾」提醒（time-tracker-macos 的 `morning_guard.py`）要知道今天学没学。都经 Tailscale，签名同上面「配对和签名」（同一个配对密钥）：
+Mac 上的「上午先学后折腾」提醒（time-tracker-macos 的 `morning_guard.py`）要知道今天学没学。都经中转服务器（信箱和加密同上面「中转」，同一个配对密钥），Mac 每分钟去取：
 
-- 手机上学的：Mac 定时 `POST /pull` 到手机的 Tailscale 地址（端口 47321），只读响应里的 `study`。`/pull` 不改手机上的数据（作答结果要等 `/push` 的 `ack` 才删），不影响 iPad 同步。连不上时 Mac 改读中转服务器的 `up`。
-- iPad 上学的：iPad 开不了常驻服务，由它在学习时间变了时（一段连续学习满 10 分钟、或分钟数变了且距上次超过 2 分钟、进后台时）`POST /study` 到 Mac 的 Tailscale 地址，端口 **47323**：
+- 手机上学的：读手机每 2 分钟放的 `up`，只用里面的 `study`。Mac 配了手机的局域网地址时，先带签名 `POST /pull` 到手机（端口 47321）直接取；`/pull` 不改手机上的数据（作答结果要等 `/push` 的 `ack` 才删），不影响 iPad 同步。
+- iPad 上学的：iPad 在学习时间变了时（一段连续学习满 10 分钟、或分钟数变了且距上次超过 2 分钟、进后台时）`PUT study`，内容：
 
 ```json
 {"v": 1, "sentAt": 1762650000000, "day": "2026-11-09", "seconds": 1260, "starts": 1, "active": true}
 ```
 
-  `day`、`seconds`、`starts` 的算法同学习码里 iPad 的部分（`IPadStudyTime`：早上 5 点切分，不含「浏览器」标签页，一段连续学习满 10 分钟算开始一次），`active` 是发出时 App 在不在前台。Mac 校验请求签名后回 `200 {"ok":true}`，响应同样签名。
+  `day`、`seconds`、`starts` 的算法同学习码里 iPad 的部分（`IPadStudyTime`：早上 5 点切分，不含「浏览器」标签页，一段连续学习满 10 分钟算开始一次），`active` 是发出时 App 在不在前台。

@@ -17,7 +17,7 @@ MAX_BLOCK = 16 * 1024 * 1024
 KEEP_DAYS = 30
 BOX = r'[0-9a-f]{32}'
 SHA = r'[0-9a-f]{64}'
-ROUTES = re.compile(rf'^/box/(?P<box>{BOX})/(?:(?P<slot>up|down)|img/(?P<sha>{SHA})|(?P<missing>missing))$')
+ROUTES = re.compile(rf'^/box/(?P<box>{BOX})/(?:(?P<slot>up|down|study)|img/(?P<sha>{SHA})|(?P<missing>missing))$')
 
 ROOT = '/var/lib/lp-relay'
 

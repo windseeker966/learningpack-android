@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
  */
 final class Relay {
     private static final String TAG = "Relay";
-    static final String DEFAULT_ADDRESS = "129.151.25.78:47322";
+    static final String DEFAULT_ADDRESS = "100.114.14.67:47322";
     static final String KEY_ADDRESS = "address";
     private static final long INTERVAL_S = 120;
     /** up 没变时最多隔这么久再传一次 */

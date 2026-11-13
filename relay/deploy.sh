@@ -61,4 +61,4 @@ fi
 rm -f "$RULES"
 
 echo "== 从这里连一下"
-curl -s -m 10 "http://129.151.25.78:$PORT/ping" && echo || echo "连不上（这台 Mac 开着 Clash TUN 时可能走了代理，以手机、iPad 实际同步为准）"
+curl -s -m 10 "http://100.114.14.67:$PORT/ping" && echo || echo "连不上（这台 Mac 要连着 Tailscale；以手机、iPad 实际同步为准）"

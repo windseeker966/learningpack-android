@@ -23,7 +23,6 @@ public class SettingsActivity extends Activity {
     private RadioButton anthropic, openai;
     private EditText base, model, key;
     private TextView result;
-    private EditText relayAddress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,7 +38,7 @@ public class SettingsActivity extends Activity {
         secret.setTextIsSelectable(true);
         secret.setTypeface(android.graphics.Typeface.MONOSPACE);
         box.addView(secret);
-        note(box, "把这串密钥填到 iPad 上 LearningPack 的「设置 › 手机复习」。iPad 打开 App 时自动来同步：两台设备连同一个 Wi-Fi 或 iPad 连这台手机的热点时直接连；不在一个网络时经中转服务器，手机每 2 分钟去收发一次（内容用这串密钥加密）。");
+        note(box, "把这串密钥填到 iPad 上 LearningPack 的「设置 › 手机复习」。iPad 打开 App 时经 Tailscale 自动来同步：两台设备都连着 Tailscale 就行，不用在同一个网络。");
         Button regenerate = new Button(this);
         regenerate.setText("重新生成密钥");
         regenerate.setOnClickListener(v -> new AlertDialog.Builder(this)
@@ -51,13 +50,10 @@ public class SettingsActivity extends Activity {
         TextView ips = new TextView(this);
         ips.setPadding(0, dp(8), 0, 0);
         ips.setAlpha(0.7f);
-        String list = String.join("、", SyncService.localAddresses());
-        ips.setText("这台手机现在的地址：" + (list.isEmpty() ? "没有连 Wi-Fi，也没开热点" : list)
-                + "\niPad 找不到手机时，可以把地址填到 iPad 设置里。");
+        String ts = SyncService.tailscaleAddress();
+        ips.setText(ts == null ? "Tailscale 没连上：iPad 连不到这台手机" : "这台手机的 Tailscale 地址：" + ts
+                + "\n不是 iPad 设置里的地址时，填到 iPad「设置 › 手机复习」。");
         box.addView(ips);
-
-        label(box, "中转服务器（空着用默认的 " + Relay.DEFAULT_ADDRESS + "）");
-        relayAddress = field(box, Relay.prefs(this).getString(Relay.KEY_ADDRESS, ""), InputType.TYPE_TEXT_VARIATION_URI);
 
         battery = new TextView(this);
         battery.setPadding(0, dp(12), 0, 0);
@@ -113,12 +109,6 @@ public class SettingsActivity extends Activity {
         scroll.addView(box);
         setContentView(scroll);
         show();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        Relay.prefs(this).edit().putString(Relay.KEY_ADDRESS, relayAddress.getText().toString().trim()).apply();
     }
 
     @Override
